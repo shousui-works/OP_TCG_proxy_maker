@@ -128,14 +128,14 @@ def load_data() -> dict:
         }
         save_data(initial_data)
         return initial_data
-    with open(DECKS_FILE, "r") as f:
+    with open(DECKS_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def save_data(data: dict):
     """データを保存"""
     DATA_DIR.mkdir(exist_ok=True)
-    with open(DECKS_FILE, "w") as f:
+    with open(DECKS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 

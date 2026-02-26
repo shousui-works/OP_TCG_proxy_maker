@@ -90,7 +90,7 @@ GitHubのようにブランチを使ってデッキ構築案を管理:
 
 ## プロジェクト構造
 
-```
+```text
 OP_tcg_proxy_maker/
 ├── crawler.py       # カード画像クローラー
 ├── server.py        # FastAPI バックエンド
