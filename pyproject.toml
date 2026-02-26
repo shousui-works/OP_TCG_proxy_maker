@@ -1,7 +1,57 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "op-tcg-proxy-maker"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.133.1",
+    "pillow>=12.1.1",
+    "requests>=2.32.5",
+    "selenium>=4.41.0",
+    "uvicorn>=0.41.0",
+]
+
+[tool.tox]
+env_list = ["py312", "lint", "ui-lint", "ui-build"]
+
+[tool.tox.env_run_base]
+deps = ["pytest"]
+commands = [["pytest", "tests/"]]
+
+[tool.tox.env.lint]
+deps = ["ruff"]
+commands = [["ruff", "check", "."]]
+
+[tool.tox.env.ui-lint]
+skip_install = true
+allowlist_externals = ["npm"]
+change_dir = "frontend"
+commands = [["npm", "ci"], ["npm", "run", "lint"]]
+
+[tool.tox.env.ui-build]
+skip_install = true
+allowlist_externals = ["npm"]
+change_dir = "frontend"
+commands = [["npm", "ci"], ["npm", "run", "build"]]
+
+[tool.setuptools]
+py-modules = ["main", "crawler", "server"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "ruff>=0.15.2",
+    "tox>=4.46.3",
+]
