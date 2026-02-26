@@ -3,6 +3,7 @@
 """
 
 import json
+import re
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -10,9 +11,12 @@ from typing import Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from crawler import OPTCGCrawler
+
+# ブランチ名・カードIDの検証パターン
+SAFE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-]+$")
 
 app = FastAPI(title="OP TCG Deck Builder API")
 
@@ -56,9 +60,32 @@ class Branch(BaseModel):
     updated_at: str
 
 
+def validate_safe_name(name: str, field_name: str = "name") -> str:
+    """名前を検証（パストラバーサル・インジェクション防止）"""
+    if not name or not SAFE_NAME_PATTERN.match(name):
+        raise ValueError(
+            f"Invalid {field_name}: only alphanumeric, underscore, and hyphen allowed"
+        )
+    if len(name) > 100:
+        raise ValueError(f"{field_name} is too long (max 100 characters)")
+    return name
+
+
 class CreateBranchRequest(BaseModel):
     name: str
     from_branch: Optional[str] = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        return validate_safe_name(v, "branch name")
+
+    @field_validator("from_branch")
+    @classmethod
+    def validate_from_branch(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return validate_safe_name(v, "from_branch")
+        return v
 
 
 class SaveDeckRequest(BaseModel):
@@ -66,10 +93,20 @@ class SaveDeckRequest(BaseModel):
     deck: list[DeckCard]
     leader: Optional[LeaderCard] = None
 
+    @field_validator("branch")
+    @classmethod
+    def validate_branch(cls, v: str) -> str:
+        return validate_safe_name(v, "branch name")
+
 
 class MergeRequest(BaseModel):
     source: str
     target: str
+
+    @field_validator("source", "target")
+    @classmethod
+    def validate_branches(cls, v: str) -> str:
+        return validate_safe_name(v, "branch name")
 
 
 def load_data() -> dict:
@@ -137,10 +174,29 @@ def list_cards():
     return {"cards": cards}
 
 
+def validate_path_component(name: str, component_type: str = "name") -> None:
+    """パスコンポーネントを検証（パストラバーサル防止）"""
+    if not name or not SAFE_NAME_PATTERN.match(name):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {component_type}: only alphanumeric, underscore, and hyphen allowed",
+        )
+
+
 @app.get("/api/cards/{series_id}/{card_id}/image")
 def get_card_image_by_series(series_id: str, card_id: str):
     """シリーズ別カード画像を返す"""
+    validate_path_component(series_id, "series_id")
+    validate_path_component(card_id, "card_id")
+
     img_path = CARDS_DIR / series_id / f"{card_id}.png"
+
+    # 追加のセキュリティチェック: パスがCARDS_DIR内に収まっているか確認
+    try:
+        img_path.resolve().relative_to(CARDS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid path")
+
     if not img_path.exists():
         raise HTTPException(status_code=404, detail="Card not found")
     with open(img_path, "rb") as f:
@@ -151,14 +207,23 @@ def get_card_image_by_series(series_id: str, card_id: str):
         headers={
             "Access-Control-Allow-Origin": "*",
             "Cache-Control": "public, max-age=86400",
-        }
+        },
     )
 
 
 @app.get("/api/cards/{card_id}/image")
 def get_card_image(card_id: str):
     """カード画像を返す（旧形式互換）"""
+    validate_path_component(card_id, "card_id")
+
     img_path = CARDS_DIR / f"{card_id}.png"
+
+    # 追加のセキュリティチェック: パスがCARDS_DIR内に収まっているか確認
+    try:
+        img_path.resolve().relative_to(CARDS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid path")
+
     if not img_path.exists():
         raise HTTPException(status_code=404, detail="Card not found")
     with open(img_path, "rb") as f:
@@ -169,7 +234,7 @@ def get_card_image(card_id: str):
         headers={
             "Access-Control-Allow-Origin": "*",
             "Cache-Control": "public, max-age=86400",
-        }
+        },
     )
 
 

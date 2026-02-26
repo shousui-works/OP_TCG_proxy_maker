@@ -26,7 +26,7 @@ interface CardsData {
   crawled_at: string | null
 }
 
-const API_BASE = 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
 export default function Admin() {
   const [series, setSeries] = useState<Series[]>([])

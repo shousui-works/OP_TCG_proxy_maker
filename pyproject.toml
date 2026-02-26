@@ -16,13 +16,6 @@ dependencies = [
     "uvicorn>=0.41.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "tox>=4.0",
-    "pytest>=8.0",
-    "ruff>=0.4",
-]
-
 [tool.tox]
 env_list = ["py312", "lint", "ui-lint", "ui-build"]
 
