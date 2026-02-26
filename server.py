@@ -179,7 +179,8 @@ def validate_path_component(name: str, component_type: str = "name") -> None:
     if not name or not SAFE_NAME_PATTERN.match(name):
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid {component_type}: only alphanumeric, underscore, and hyphen allowed",
+            detail=f"Invalid {component_type}: "
+            "only alphanumeric, underscore, and hyphen allowed",
         )
 
 
