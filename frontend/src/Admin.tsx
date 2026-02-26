@@ -43,9 +43,10 @@ export default function Admin() {
       .then(data => {
         setSeries(data.series || [])
         setSeriesLastUpdated(data.last_updated)
-        if (data.series?.length > 0 && !selectedSeriesId) {
-          setSelectedSeriesId(data.series[0].id)
-        }
+        // 初期値として最初のシリーズを設定
+        setSelectedSeriesId(prev =>
+          prev || (data.series?.length > 0 ? data.series[0].id : '')
+        )
       })
       .catch(err => console.error('Failed to fetch series:', err))
   }, [])
@@ -98,7 +99,11 @@ export default function Admin() {
     if (!confirm('全シリーズをクロールしますか？時間がかかります。')) return
 
     try {
-      await fetch(`${API_BASE}/api/crawl/all`, { method: 'POST' })
+      await fetch(`${API_BASE}/api/crawl/all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: false })
+      })
     } catch (err) {
       console.error('Failed to start crawl all:', err)
     }
