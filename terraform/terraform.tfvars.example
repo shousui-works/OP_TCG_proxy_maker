@@ -1,0 +1,16 @@
+# GCPプロジェクト設定
+project_id = "your-gcp-project-id"
+region     = "asia-northeast1"
+
+# 環境
+environment = "prod"
+
+# Cloud Run バックエンド設定
+backend_cpu           = "1"
+backend_memory        = "512Mi"
+backend_min_instances = 0
+backend_max_instances = 10
+
+# Cloud Run フロントエンド設定
+frontend_min_instances = 0
+frontend_max_instances = 5

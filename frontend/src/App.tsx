@@ -1,7 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import './App.css'
 import { exportDeckToPDF } from './utils/pdfExport'
+import { useAuth } from './contexts/AuthContext'
+import { useFirestoreDeck } from './hooks/useFirestoreDeck'
+import { useResponsive } from './hooks/useResponsive'
+import LoginButton from './components/LoginButton'
+import MobileHeader from './components/MobileHeader'
+import HamburgerMenu from './components/HamburgerMenu'
+import BottomNavigation, { type TabType } from './components/BottomNavigation'
+import FilterPanel from './components/FilterPanel'
 
 interface Series {
   id: string
@@ -13,7 +21,6 @@ interface Card {
   name: string
   image: string
   series_id?: string
-  // all_cards.jsonからの詳細情報
   rarity?: string
   card_type?: string
   cost?: string
@@ -29,11 +36,9 @@ interface DeckCard extends Card {
   count: number
 }
 
-interface BranchInfo {
+interface SavedDeck {
   name: string
-  parent: string | null
   deck_count: number
-  created_at: string
   updated_at: string
 }
 
@@ -42,17 +47,20 @@ const MAX_DECK_SIZE = 50
 const MAX_COPIES = 4
 
 function App() {
+  const { user } = useAuth()
+  const firestore = useFirestoreDeck()
+  const { isMobile } = useResponsive()
+
   const [cards, setCards] = useState<Card[]>([])
   const [deck, setDeck] = useState<DeckCard[]>([])
   const [leader, setLeader] = useState<Card | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // ブランチ関連の状態
-  const [currentBranch, setCurrentBranch] = useState('main')
-  const [branches, setBranches] = useState<BranchInfo[]>([])
-  const [showBranchModal, setShowBranchModal] = useState(false)
-  const [showMergeModal, setShowMergeModal] = useState(false)
-  const [newBranchName, setNewBranchName] = useState('')
+  // デッキ保存関連の状態
+  const [currentDeckName, setCurrentDeckName] = useState<string | null>(null)
+  const [savedDecks, setSavedDecks] = useState<SavedDeck[]>([])
+  const [showSaveAsModal, setShowSaveAsModal] = useState(false)
+  const [newDeckName, setNewDeckName] = useState('')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   // PDF生成状態
@@ -72,16 +80,15 @@ function App() {
   const [selectedRarities, setSelectedRarities] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
 
-  // 色一覧
+  // モバイルUI状態
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<TabType>('cards')
+
   const colors = ['赤', '緑', '青', '紫', '黒', '黄']
-
-  // カードタイプ一覧
   const cardTypes = ['LEADER', 'CHARACTER', 'EVENT', 'STAGE']
-
-  // レアリティ一覧
   const rarities = ['L', 'C', 'UC', 'R', 'SR', 'SEC', 'SP']
 
-  // フィルタートグル
   const toggleFilter = (
     current: string[],
     setter: React.Dispatch<React.SetStateAction<string[]>>,
@@ -96,47 +103,69 @@ function App() {
 
   const deckCount = deck.reduce((sum, card) => sum + card.count, 0)
 
-  // ブランチ一覧を取得
-  const fetchBranches = useCallback(async () => {
+  // 保存済みデッキ一覧を取得
+  const fetchSavedDecks = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/branches`)
-      const data = await res.json()
-      setBranches(data.branches)
-      setCurrentBranch(data.current_branch)
+      if (user && firestore.isAuthenticated) {
+        const data = await firestore.fetchBranches()
+        setSavedDecks(data.branches.map(b => ({
+          name: b.name,
+          deck_count: b.deck_count,
+          updated_at: b.updated_at
+        })))
+      } else {
+        const res = await fetch(`${API_BASE}/api/branches`)
+        const data = await res.json()
+        setSavedDecks(data.branches.map((b: SavedDeck) => ({
+          name: b.name,
+          deck_count: b.deck_count,
+          updated_at: b.updated_at
+        })))
+      }
     } catch (err) {
-      console.error('Failed to fetch branches:', err)
+      console.error('Failed to fetch saved decks:', err)
     }
-  }, [])
+  }, [user, firestore])
 
-  // ブランチのデッキを読み込む
-  const loadBranchDeck = useCallback(async (branchName: string) => {
+  // デッキを読み込む
+  const loadDeck = useCallback(async (deckName: string) => {
+    if (hasUnsavedChanges) {
+      if (!confirm('未保存の変更があります。破棄してデッキを読み込みますか？')) {
+        return
+      }
+    }
+
     try {
-      const res = await fetch(`${API_BASE}/api/deck/${branchName}`)
-      const data = await res.json()
-      setDeck(data.deck || [])
-      setLeader(data.leader || null)
+      if (user && firestore.isAuthenticated) {
+        const data = await firestore.getDeck(deckName)
+        setDeck(data.deck || [])
+        setLeader(data.leader || null)
+      } else {
+        const res = await fetch(`${API_BASE}/api/deck/${deckName}`)
+        const data = await res.json()
+        setDeck(data.deck || [])
+        setLeader(data.leader || null)
+      }
+      setCurrentDeckName(deckName)
       setHasUnsavedChanges(false)
     } catch (err) {
       console.error('Failed to load deck:', err)
     }
-  }, [])
+  }, [user, firestore, hasUnsavedChanges])
 
-  // 初期化
+  // 初期化（カードデータ・シリーズはAPIから取得）
   useEffect(() => {
-    const init = async () => {
+    const initCards = async () => {
       try {
-        const [cardsRes, branchesRes, seriesRes, cardsDataRes] = await Promise.all([
+        const [cardsRes, seriesRes, cardsDataRes] = await Promise.all([
           fetch(`${API_BASE}/api/cards`),
-          fetch(`${API_BASE}/api/branches`),
           fetch(`${API_BASE}/api/series`),
           fetch(`${API_BASE}/api/cards/data`)
         ])
         const cardsListData = await cardsRes.json()
-        const branchesData = await branchesRes.json()
         const seriesData = await seriesRes.json()
         const allCardsData = await cardsDataRes.json()
 
-        // カード一覧にall_cards.jsonの詳細情報をマージ
         const cardsWithDetails = cardsListData.cards.map((card: Card) => {
           const details = allCardsData.cards?.[card.id] || {}
           return {
@@ -155,58 +184,54 @@ function App() {
         })
 
         setCards(cardsWithDetails)
-        setBranches(branchesData.branches)
-        setCurrentBranch(branchesData.current_branch)
         setSeries(seriesData.series || [])
-
-        // 現在のブランチのデッキを読み込む
-        const deckRes = await fetch(`${API_BASE}/api/deck/${branchesData.current_branch}`)
-        const deckData = await deckRes.json()
-        setDeck(deckData.deck || [])
-        setLeader(deckData.leader || null)
-
         setLoading(false)
       } catch (err) {
-        console.error('Failed to initialize:', err)
+        console.error('Failed to initialize cards:', err)
         setLoading(false)
       }
     }
-    init()
+    initCards()
   }, [])
 
-  // フィルター済みカード
-  const filteredCards = cards.filter(card => {
-    // シリーズフィルター
-    if (selectedSeries.length > 0 && !selectedSeries.includes(card.series_id || '')) {
-      return false
-    }
-    // 色フィルター（カードの色がいずれかの選択色を含む）
-    if (selectedColors.length > 0) {
-      const hasColor = selectedColors.some(c => card.color?.includes(c))
-      if (!hasColor) return false
-    }
-    // カードタイプフィルター
-    if (selectedCardTypes.length > 0 && !selectedCardTypes.includes(card.card_type || '')) {
-      return false
-    }
-    // レアリティフィルター
-    if (selectedRarities.length > 0 && !selectedRarities.includes(card.rarity || '')) {
-      return false
-    }
-    // 検索フィルター（カードID or カード名）
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      const matchId = card.id.toLowerCase().includes(q)
-      const matchName = card.name?.toLowerCase().includes(q)
-      if (!matchId && !matchName) return false
-    }
-    return true
-  })
+  // 保存済みデッキを初期化
+  useEffect(() => {
+    fetchSavedDecks()
+  }, [fetchSavedDecks])
 
-  // フィルターが有効かどうか
+  // フィルター済みカード（useMemoで最適化）
+  const filteredCards = useMemo(() => {
+    return cards.filter(card => {
+      if (selectedSeries.length > 0 && !selectedSeries.includes(card.series_id || '')) {
+        return false
+      }
+      if (selectedColors.length > 0) {
+        const hasColor = selectedColors.some(c => card.color?.includes(c))
+        if (!hasColor) return false
+      }
+      if (selectedCardTypes.length > 0 && !selectedCardTypes.includes(card.card_type || '')) {
+        return false
+      }
+      if (selectedRarities.length > 0 && !selectedRarities.includes(card.rarity || '')) {
+        return false
+      }
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        const matchId = card.id.toLowerCase().includes(q)
+        const matchName = card.name?.toLowerCase().includes(q)
+        if (!matchId && !matchName) return false
+      }
+      return true
+    })
+  }, [cards, selectedSeries, selectedColors, selectedCardTypes, selectedRarities, searchQuery])
+
+  // deckをMapに変換してO(1)検索
+  const deckMap = useMemo(() => {
+    return new Map(deck.map(c => [c.id, c.count]))
+  }, [deck])
+
   const hasActiveFilters = searchQuery || selectedSeries.length > 0 || selectedColors.length > 0 || selectedCardTypes.length > 0 || selectedRarities.length > 0
 
-  // フィルターをリセット
   const clearFilters = () => {
     setSearchQuery('')
     setSelectedSeries([])
@@ -215,18 +240,81 @@ function App() {
     setSelectedRarities([])
   }
 
-  // デッキを保存
+  // デッキを保存（上書き）
   const saveDeck = async () => {
+    if (!currentDeckName) {
+      setShowSaveAsModal(true)
+      return
+    }
+
     try {
-      await fetch(`${API_BASE}/api/deck/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ branch: currentBranch, deck, leader })
-      })
+      if (user && firestore.isAuthenticated) {
+        await firestore.saveDeck(currentDeckName, deck, leader)
+      } else {
+        await fetch(`${API_BASE}/api/deck/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branch: currentDeckName, deck, leader })
+        })
+      }
       setHasUnsavedChanges(false)
-      fetchBranches()
+      fetchSavedDecks()
     } catch (err) {
       console.error('Failed to save deck:', err)
+    }
+  }
+
+  // 名前をつけて保存
+  const saveAsNewDeck = async () => {
+    if (!newDeckName.trim()) return
+
+    try {
+      if (user && firestore.isAuthenticated) {
+        await firestore.createBranch(newDeckName, null)
+        await firestore.saveDeck(newDeckName, deck, leader)
+      } else {
+        await fetch(`${API_BASE}/api/branches`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newDeckName, from_branch: null })
+        })
+        await fetch(`${API_BASE}/api/deck/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ branch: newDeckName, deck, leader })
+        })
+      }
+      setCurrentDeckName(newDeckName)
+      setNewDeckName('')
+      setShowSaveAsModal(false)
+      setHasUnsavedChanges(false)
+      fetchSavedDecks()
+    } catch (err) {
+      console.error('Failed to save deck:', err)
+    }
+  }
+
+  // デッキを削除
+  const deleteDeck = async (deckName: string) => {
+    if (!confirm(`デッキ "${deckName}" を削除しますか？`)) return
+
+    try {
+      if (user && firestore.isAuthenticated) {
+        await firestore.deleteBranch(deckName)
+      } else {
+        await fetch(`${API_BASE}/api/branches/${deckName}`, {
+          method: 'DELETE'
+        })
+      }
+      fetchSavedDecks()
+      if (currentDeckName === deckName) {
+        setCurrentDeckName(null)
+        setDeck([])
+        setLeader(null)
+        setHasUnsavedChanges(false)
+      }
+    } catch (err) {
+      console.error('Failed to delete deck:', err)
     }
   }
 
@@ -236,7 +324,6 @@ function App() {
     setLeader(card)
     setHasUnsavedChanges(true)
 
-    // リーダーの色でフィルターを自動設定
     if (card.color) {
       const leaderColors = colors.filter(c => card.color?.includes(c))
       if (leaderColors.length > 0) {
@@ -245,94 +332,16 @@ function App() {
     }
   }
 
-  // リーダーを解除
   const removeLeader = () => {
     setLeader(null)
     setHasUnsavedChanges(true)
   }
 
-  // ブランチを作成
-  const createBranch = async () => {
-    if (!newBranchName.trim()) return
-
-    try {
-      await fetch(`${API_BASE}/api/branches`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newBranchName, from_branch: currentBranch })
-      })
-      setNewBranchName('')
-      setShowBranchModal(false)
-      await fetchBranches()
-      // 新しいブランチにチェックアウト
-      await checkoutBranch(newBranchName)
-    } catch (err) {
-      console.error('Failed to create branch:', err)
-    }
-  }
-
-  // ブランチを切り替え
-  const checkoutBranch = async (branchName: string) => {
-    if (hasUnsavedChanges) {
-      if (!confirm('未保存の変更があります。破棄してブランチを切り替えますか？')) {
-        return
-      }
-    }
-
-    try {
-      await fetch(`${API_BASE}/api/branches/${branchName}/checkout`, {
-        method: 'POST'
-      })
-      setCurrentBranch(branchName)
-      await loadBranchDeck(branchName)
-    } catch (err) {
-      console.error('Failed to checkout branch:', err)
-    }
-  }
-
-  // ブランチを削除
-  const deleteBranch = async (branchName: string) => {
-    if (branchName === 'main') return
-    if (!confirm(`ブランチ "${branchName}" を削除しますか？`)) return
-
-    try {
-      await fetch(`${API_BASE}/api/branches/${branchName}`, {
-        method: 'DELETE'
-      })
-      await fetchBranches()
-      if (currentBranch === branchName) {
-        await checkoutBranch('main')
-      }
-    } catch (err) {
-      console.error('Failed to delete branch:', err)
-    }
-  }
-
-  // ブランチをmainにマージ
-  const mergeBranch = async (sourceBranch: string) => {
-    if (!confirm(`"${sourceBranch}" を "main" にマージしますか？`)) return
-
-    try {
-      await fetch(`${API_BASE}/api/branches/merge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: sourceBranch, target: 'main' })
-      })
-      setShowMergeModal(false)
-      await fetchBranches()
-    } catch (err) {
-      console.error('Failed to merge branch:', err)
-    }
-  }
-
   const addToDeck = (card: Card) => {
-    // リーダーの場合はリーダーとして設定
     if (card.card_type === 'LEADER') {
       setLeaderCard(card)
       return
     }
-
-    if (deckCount >= MAX_DECK_SIZE) return
 
     setDeck(prev => {
       const existing = prev.find(c => c.id === card.id)
@@ -367,10 +376,21 @@ function App() {
     setHasUnsavedChanges(true)
   }
 
+  const newDeck = () => {
+    if (hasUnsavedChanges) {
+      if (!confirm('未保存の変更があります。新しいデッキを作成しますか？')) {
+        return
+      }
+    }
+    setDeck([])
+    setLeader(null)
+    setCurrentDeckName(null)
+    setHasUnsavedChanges(false)
+  }
+
   // PDF出力モーダルを開く
   const openPdfModal = () => {
     if (deck.length === 0 && !leader) return
-    // デッキのカードを初期選択状態にする
     const initialSelection = new Map<string, number>()
     deck.forEach(card => {
       initialSelection.set(card.id, card.count)
@@ -380,7 +400,6 @@ function App() {
     setShowPdfModal(true)
   }
 
-  // PDF選択モーダルでカード枚数を変更
   const updatePdfCardCount = (cardId: string, delta: number) => {
     setPdfSelectedCards(prev => {
       const newMap = new Map(prev)
@@ -397,10 +416,8 @@ function App() {
     })
   }
 
-  // PDF選択の合計枚数
   const pdfTotalCards = Array.from(pdfSelectedCards.values()).reduce((sum, count) => sum + count, 0) + (pdfIncludeLeader && leader ? 1 : 0)
 
-  // PDF出力実行
   const handleExportPDF = async () => {
     setShowPdfModal(false)
     setIsGeneratingPDF(true)
@@ -408,7 +425,6 @@ function App() {
     setPdfLoadedCount(0)
     setPdfTotalCount(0)
 
-    // 選択されたカードでデッキを作成
     const selectedDeck = deck
       .filter(card => pdfSelectedCards.has(card.id))
       .map(card => ({
@@ -440,7 +456,7 @@ function App() {
   }
 
   const getCardCount = (cardId: string) => {
-    return deck.find(c => c.id === cardId)?.count || 0
+    return deckMap.get(cardId) || 0
   }
 
   if (loading) {
@@ -448,167 +464,197 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <header className="header">
-        <div className="header-left">
-          <h1>OP TCG デッキビルダー</h1>
-          <Link to="/admin" className="admin-link">Admin</Link>
-        </div>
-        <div className="branch-controls">
-          <div className="current-branch">
-            <span className="branch-icon">&#9673;</span>
-            <span>{currentBranch}</span>
-            {hasUnsavedChanges && <span className="unsaved-indicator">*</span>}
+    <div className={`app ${isMobile ? 'is-mobile' : ''}`}>
+      {/* モバイルヘッダー */}
+      {isMobile ? (
+        <MobileHeader
+          onMenuToggle={() => setIsMobileMenuOpen(true)}
+          currentDeckName={currentDeckName}
+          hasUnsavedChanges={hasUnsavedChanges}
+        />
+      ) : (
+        <header className="header">
+          <div className="header-left">
+            <h1>OP TCG デッキビルダー</h1>
+            <Link to="/admin" className="admin-link">Admin</Link>
           </div>
-          <button onClick={() => setShowBranchModal(true)}>
-            + 新規ブランチ
-          </button>
-          <button onClick={() => setShowMergeModal(true)}>
-            マージ
-          </button>
-          <button onClick={saveDeck} disabled={!hasUnsavedChanges}>
-            保存
-          </button>
-        </div>
-      </header>
+          <div className="deck-controls">
+            <div className="current-deck">
+              <span>{currentDeckName || '(新規デッキ)'}</span>
+              {hasUnsavedChanges && <span className="unsaved-indicator">*</span>}
+            </div>
+            <button onClick={newDeck}>
+              新規
+            </button>
+            <button onClick={saveDeck} disabled={!hasUnsavedChanges && !!currentDeckName}>
+              保存
+            </button>
+            <button onClick={() => setShowSaveAsModal(true)}>
+              名前をつけて保存
+            </button>
+          </div>
+          <LoginButton />
+        </header>
+      )}
 
-      {/* ブランチ一覧サイドバー */}
-      <div className="branch-sidebar">
-        <h3>ブランチ</h3>
-        <ul className="branch-list">
-          {branches.map(branch => (
-            <li
-              key={branch.name}
-              className={`branch-item ${branch.name === currentBranch ? 'active' : ''}`}
-            >
-              <div className="branch-info" onClick={() => checkoutBranch(branch.name)}>
-                <span className="branch-name">
-                  {branch.name === 'main' ? '● ' : '○ '}
-                  {branch.name}
-                </span>
-                <span className="branch-deck-count">{branch.deck_count}枚</span>
-              </div>
-              {branch.name !== 'main' && (
-                <button
-                  className="branch-delete"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    deleteBranch(branch.name)
-                  }}
+      {/* ハンバーガーメニュー (モバイル) */}
+      <HamburgerMenu
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        savedDecks={savedDecks}
+        currentDeckName={currentDeckName}
+        hasUnsavedChanges={hasUnsavedChanges}
+        onLoadDeck={loadDeck}
+        onNewDeck={newDeck}
+        onSave={saveDeck}
+        onSaveAs={() => setShowSaveAsModal(true)}
+        onDeleteDeck={deleteDeck}
+      />
+
+      {/* フィルターパネル */}
+      <FilterPanel
+        isOpen={isFilterPanelOpen}
+        onClose={() => setIsFilterPanelOpen(false)}
+        isMobile={isMobile}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        colors={colors}
+        selectedColors={selectedColors}
+        onColorToggle={(c) => toggleFilter(selectedColors, setSelectedColors, c)}
+        cardTypes={cardTypes}
+        selectedCardTypes={selectedCardTypes}
+        onTypeToggle={(t) => toggleFilter(selectedCardTypes, setSelectedCardTypes, t)}
+        rarities={rarities}
+        selectedRarities={selectedRarities}
+        onRarityToggle={(r) => toggleFilter(selectedRarities, setSelectedRarities, r)}
+        series={series}
+        selectedSeries={selectedSeries}
+        onSeriesAdd={(id) => setSelectedSeries(prev => [...prev, id])}
+        onSeriesRemove={(id) => setSelectedSeries(prev => prev.filter(s => s !== id))}
+        onClearFilters={clearFilters}
+        hasActiveFilters={!!hasActiveFilters}
+      />
+
+      {/* 保存済みデッキ一覧サイドバー (デスクトップ) */}
+      {!isMobile && (
+        <div className="deck-sidebar">
+          <h3>保存済みデッキ</h3>
+          {savedDecks.length === 0 ? (
+            <p className="no-decks">保存済みデッキはありません</p>
+          ) : (
+            <ul className="saved-deck-list">
+              {savedDecks.map(savedDeck => (
+                <li
+                  key={savedDeck.name}
+                  className={`saved-deck-item ${savedDeck.name === currentDeckName ? 'active' : ''}`}
                 >
-                  ×
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
+                  <div className="saved-deck-info" onClick={() => loadDeck(savedDeck.name)}>
+                    <span className="saved-deck-name">{savedDeck.name}</span>
+                    <span className="saved-deck-count">{savedDeck.deck_count}枚</span>
+                  </div>
+                  <button
+                    className="saved-deck-delete"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      deleteDeck(savedDeck.name)
+                    }}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="main-content">
-        <section className="card-pool">
+        {/* カードプール */}
+        <section className={`card-pool ${!isMobile || activeTab === 'cards' ? 'active' : ''}`}>
           <div className="card-pool-header">
             <h2>カードプール ({filteredCards.length}/{cards.length}枚)</h2>
-            <div className="filter-controls">
-              <input
-                type="text"
-                className="search-input"
-                placeholder="ID/名前で検索..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
-              {hasActiveFilters && (
-                <button className="clear-filter" onClick={clearFilters}>
-                  クリア
-                </button>
-              )}
-            </div>
-            <div className="filter-chips">
-              <div className="filter-group">
-                <span className="filter-label">色:</span>
-                {colors.map(c => (
-                  <button
-                    key={c}
-                    className={`filter-chip ${selectedColors.includes(c) ? 'active' : ''}`}
-                    onClick={() => toggleFilter(selectedColors, setSelectedColors, c)}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-              <div className="filter-group">
-                <span className="filter-label">タイプ:</span>
-                {cardTypes.map(t => (
-                  <button
-                    key={t}
-                    className={`filter-chip ${selectedCardTypes.includes(t) ? 'active' : ''}`}
-                    onClick={() => toggleFilter(selectedCardTypes, setSelectedCardTypes, t)}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-              <div className="filter-group">
-                <span className="filter-label">レア:</span>
-                {rarities.map(r => (
-                  <button
-                    key={r}
-                    className={`filter-chip ${selectedRarities.includes(r) ? 'active' : ''}`}
-                    onClick={() => toggleFilter(selectedRarities, setSelectedRarities, r)}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-              <div className="filter-group">
-                <span className="filter-label">シリーズ:</span>
-                <select
-                  className="filter-select"
-                  value=""
-                  onChange={e => {
-                    if (e.target.value) toggleFilter(selectedSeries, setSelectedSeries, e.target.value)
-                  }}
-                >
-                  <option value="">選択...</option>
-                  {series.filter(s => !selectedSeries.includes(s.id)).map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-                {selectedSeries.map(sid => {
-                  const s = series.find(x => x.id === sid)
-                  return (
-                    <button
-                      key={sid}
-                      className="filter-chip active"
-                      onClick={() => toggleFilter(selectedSeries, setSelectedSeries, sid)}
-                    >
-                      {s?.name || sid} ×
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-          <div className="card-grid">
-            {filteredCards.map(card => (
-              <div
-                key={card.id}
-                className={`card-item ${getCardCount(card.id) >= MAX_COPIES ? 'maxed' : ''}`}
-                onClick={() => addToDeck(card)}
+            {/* デスクトップ: インラインフィルター */}
+            {!isMobile && (
+              <button
+                className="filter-toggle-btn"
+                onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
               >
-                <img
-                  src={`${API_BASE}${card.image}`}
-                  alt={card.name}
-                  loading="lazy"
-                />
-                {getCardCount(card.id) > 0 && (
-                  <div className="card-count">{getCardCount(card.id)}</div>
-                )}
-              </div>
-            ))}
+                フィルター {hasActiveFilters && `(${selectedColors.length + selectedCardTypes.length + selectedRarities.length + selectedSeries.length})`}
+              </button>
+            )}
+          </div>
+
+          {/* デスクトップ: フィルターパネル表示 */}
+          {!isMobile && isFilterPanelOpen && (
+            <FilterPanel
+              isOpen={true}
+              onClose={() => setIsFilterPanelOpen(false)}
+              isMobile={false}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              colors={colors}
+              selectedColors={selectedColors}
+              onColorToggle={(c) => toggleFilter(selectedColors, setSelectedColors, c)}
+              cardTypes={cardTypes}
+              selectedCardTypes={selectedCardTypes}
+              onTypeToggle={(t) => toggleFilter(selectedCardTypes, setSelectedCardTypes, t)}
+              rarities={rarities}
+              selectedRarities={selectedRarities}
+              onRarityToggle={(r) => toggleFilter(selectedRarities, setSelectedRarities, r)}
+              series={series}
+              selectedSeries={selectedSeries}
+              onSeriesAdd={(id) => setSelectedSeries(prev => [...prev, id])}
+              onSeriesRemove={(id) => setSelectedSeries(prev => prev.filter(s => s !== id))}
+              onClearFilters={clearFilters}
+              hasActiveFilters={!!hasActiveFilters}
+            />
+          )}
+
+          <div className="card-grid-container">
+            <div className="card-grid">
+              {filteredCards.map(card => {
+                const count = getCardCount(card.id)
+                return (
+                  <div
+                    key={card.id}
+                    className={`card-item ${count >= MAX_COPIES ? 'maxed' : ''}`}
+                    onClick={() => !isMobile && addToDeck(card)}
+                  >
+                    <img
+                      src={`${API_BASE}${card.image.replace('/image', '/thumb')}?size=sm`}
+                      alt={card.name}
+                      loading="lazy"
+                    />
+                    {count > 0 && (
+                      <div className="card-count">{count}</div>
+                    )}
+                    {isMobile && (
+                      <div className="card-controls">
+                        <button
+                          className="card-control-btn minus"
+                          onClick={(e) => { e.stopPropagation(); removeFromDeck(card.id) }}
+                          disabled={count === 0}
+                        >
+                          −
+                        </button>
+                        <button
+                          className="card-control-btn plus"
+                          onClick={(e) => { e.stopPropagation(); addToDeck(card) }}
+                          disabled={count >= MAX_COPIES}
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </section>
 
-        <aside className="deck-panel">
+        {/* デッキパネル */}
+        <aside className={`deck-panel ${!isMobile || activeTab === 'deck' ? 'active' : ''}`}>
           <div className="deck-header">
             <h2>デッキ ({deckCount}/{MAX_DECK_SIZE})</h2>
             <div className="deck-actions">
@@ -617,7 +663,7 @@ function App() {
                 disabled={deck.length === 0 && !leader}
                 className="export-button"
               >
-                PDF出力
+                プロキシ作成
               </button>
               <button onClick={clearDeck} disabled={deck.length === 0 && !leader}>
                 クリア
@@ -625,13 +671,12 @@ function App() {
             </div>
           </div>
 
-          {/* リーダー */}
           <div className="leader-section">
             <h3>リーダー</h3>
             {leader ? (
               <div className="leader-card">
                 <img
-                  src={`${API_BASE}${leader.image}`}
+                  src={`${API_BASE}${leader.image.replace('/image', '/thumb')}?size=sm`}
                   alt={leader.name}
                 />
                 <div className="leader-info">
@@ -655,7 +700,7 @@ function App() {
             {deck.map(card => (
               <div key={card.id} className="deck-card">
                 <img
-                  src={`${API_BASE}${card.image}`}
+                  src={`${API_BASE}${card.image.replace('/image', '/thumb')}?size=xs`}
                   alt={card.name}
                 />
                 <div className="deck-card-info">
@@ -665,7 +710,7 @@ function App() {
                     <span>{card.count}</span>
                     <button
                       onClick={() => addToDeck(card)}
-                      disabled={card.count >= MAX_COPIES || deckCount >= MAX_DECK_SIZE}
+                      disabled={card.count >= MAX_COPIES}
                     >
                       +
                     </button>
@@ -677,68 +722,57 @@ function App() {
         </aside>
       </div>
 
-      {/* 新規ブランチモーダル */}
-      {showBranchModal && (
-        <div className="modal-overlay" onClick={() => setShowBranchModal(false)}>
+      {/* ボトムナビゲーション (モバイル) */}
+      {isMobile && (
+        <BottomNavigation
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          deckCount={deckCount}
+          maxDeckSize={MAX_DECK_SIZE}
+          hasActiveFilters={!!hasActiveFilters}
+          onFilterToggle={() => setIsFilterPanelOpen(true)}
+        />
+      )}
+
+      {/* 名前をつけて保存モーダル */}
+      {showSaveAsModal && (
+        <div className="modal-overlay" onClick={() => setShowSaveAsModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>新規ブランチを作成</h3>
+            <h3>名前をつけて保存</h3>
             <p className="modal-desc">
-              現在のブランチ "{currentBranch}" から新しいブランチを作成します
+              デッキの名前を入力してください
             </p>
             <input
               type="text"
-              value={newBranchName}
-              onChange={e => setNewBranchName(e.target.value)}
-              placeholder="ブランチ名"
-              onKeyDown={e => e.key === 'Enter' && createBranch()}
+              value={newDeckName}
+              onChange={e => setNewDeckName(e.target.value)}
+              placeholder="デッキ名"
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  saveAsNewDeck()
+                }
+              }}
+              autoFocus
             />
             <div className="modal-actions">
-              <button onClick={() => setShowBranchModal(false)}>キャンセル</button>
-              <button onClick={createBranch} className="primary">作成</button>
+              <button onClick={() => setShowSaveAsModal(false)}>キャンセル</button>
+              <button onClick={saveAsNewDeck} className="primary" disabled={!newDeckName.trim()}>
+                保存
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* マージモーダル */}
-      {showMergeModal && (
-        <div className="modal-overlay" onClick={() => setShowMergeModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>ブランチをmainにマージ</h3>
-            <p className="modal-desc">
-              選択したブランチのデッキをmainに統合します
-            </p>
-            <div className="merge-branch-list">
-              {branches.filter(b => b.name !== 'main').map(branch => (
-                <button
-                  key={branch.name}
-                  className="merge-branch-item"
-                  onClick={() => mergeBranch(branch.name)}
-                >
-                  {branch.name} ({branch.deck_count}枚) → main
-                </button>
-              ))}
-              {branches.filter(b => b.name !== 'main').length === 0 && (
-                <p>マージ可能なブランチがありません</p>
-              )}
-            </div>
-            <div className="modal-actions">
-              <button onClick={() => setShowMergeModal(false)}>閉じる</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* PDF出力選択モーダル */}
+      {/* プロキシ作成モーダル */}
       {showPdfModal && (
         <div className="modal-overlay" onClick={() => setShowPdfModal(false)}>
           <div className="modal pdf-select-modal" onClick={e => e.stopPropagation()}>
-            <h3>PDF出力するカードを選択</h3>
+            <h3>プロキシ作成</h3>
             <p className="modal-desc">
-              出力するカードと枚数を選択してください（合計: {pdfTotalCards}枚）
+              作成するカードと枚数を選択してください（合計: {pdfTotalCards}枚）
             </p>
 
-            {/* リーダー選択 */}
             {leader && (
               <div className="pdf-leader-select">
                 <label className="pdf-checkbox-label">
@@ -754,7 +788,6 @@ function App() {
               </div>
             )}
 
-            {/* デッキカード選択 */}
             <div className="pdf-card-list">
               {deck.map(card => {
                 const selectedCount = pdfSelectedCards.get(card.id) || 0
@@ -792,18 +825,18 @@ function App() {
                 className="primary"
                 disabled={pdfTotalCards === 0}
               >
-                PDF出力 ({pdfTotalCards}枚)
+                作成 ({pdfTotalCards}枚)
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* PDF生成モーダル */}
+      {/* プロキシ生成中モーダル */}
       {isGeneratingPDF && (
         <div className="modal-overlay">
           <div className="modal pdf-modal">
-            <h3>PDF生成中...</h3>
+            <h3>プロキシ作成中...</h3>
             <div className="progress-bar">
               <div
                 className="progress-fill"

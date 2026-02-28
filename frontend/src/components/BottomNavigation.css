@@ -1,0 +1,81 @@
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--bottom-nav-height);
+  display: flex;
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-bg-tertiary);
+  z-index: var(--z-bottom-nav);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  position: relative;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-xs) 0;
+  transition: color var(--transition-fast);
+}
+
+.nav-item:active {
+  background: var(--color-bg-tertiary);
+}
+
+.nav-item.active {
+  color: var(--color-accent);
+}
+
+.nav-item svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.nav-item span {
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.deck-count-badge {
+  position: absolute;
+  top: 4px;
+  right: 20%;
+  background: var(--color-accent);
+  color: white;
+  font-size: 0.5rem;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  min-width: 28px;
+  text-align: center;
+}
+
+.filter-item {
+  position: relative;
+}
+
+.filter-dot {
+  position: absolute;
+  top: 6px;
+  right: 30%;
+  width: 8px;
+  height: 8px;
+  background: var(--color-accent);
+  border-radius: 50%;
+}
+
+.nav-item.has-filters {
+  color: var(--color-accent);
+}

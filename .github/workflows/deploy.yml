@@ -1,0 +1,102 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: asia-northeast1
+  BACKEND_SERVICE: op-tcg-backend
+  FRONTEND_SERVICE: op-tcg-frontend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Workload Identity Federation用
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # GCP認証（Workload Identity Federation）
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      # gcloud CLIセットアップ
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # Docker認証
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # バックエンドビルド
+      - name: Build Backend Image
+        run: |
+          docker build \
+            -f docker/backend.Dockerfile \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/op-tcg-images/backend:${{ github.sha }} \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/op-tcg-images/backend:latest \
+            .
+
+      # フロントエンドビルド
+      - name: Build Frontend Image
+        run: |
+          docker build \
+            -f docker/frontend.Dockerfile \
+            --build-arg VITE_API_BASE=${{ secrets.VITE_API_BASE }} \
+            --build-arg VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }} \
+            --build-arg VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }} \
+            --build-arg VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }} \
+            --build-arg VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }} \
+            --build-arg VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }} \
+            --build-arg VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }} \
+            --build-arg VITE_ADMIN_EMAIL=${{ secrets.VITE_ADMIN_EMAIL }} \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/op-tcg-images/frontend:${{ github.sha }} \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/op-tcg-images/frontend:latest \
+            .
+
+      # イメージをプッシュ
+      - name: Push Backend Image
+        run: |
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/op-tcg-images/backend:${{ github.sha }}
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/op-tcg-images/backend:latest
+
+      - name: Push Frontend Image
+        run: |
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/op-tcg-images/frontend:${{ github.sha }}
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/op-tcg-images/frontend:latest
+
+      # フロントエンドデプロイ（先にデプロイしてURLを取得）
+      - name: Deploy Frontend to Cloud Run
+        id: deploy-frontend
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.FRONTEND_SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/op-tcg-images/frontend:${{ github.sha }}
+
+      # バックエンドデプロイ（フロントエンドURLをCORS許可に追加）
+      - name: Deploy Backend to Cloud Run
+        id: deploy-backend
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.BACKEND_SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/op-tcg-images/backend:${{ github.sha }}
+          env_vars: |
+            ALLOWED_ORIGINS=${{ steps.deploy-frontend.outputs.url }}
+
+      # デプロイ結果を出力
+      - name: Show Deploy Results
+        run: |
+          echo "Frontend URL: ${{ steps.deploy-frontend.outputs.url }}"
+          echo "Backend URL: ${{ steps.deploy-backend.outputs.url }}"

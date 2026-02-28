@@ -40,10 +40,27 @@ SERIES_DATA_FILE = DATA_DIR / "series_data.json"
 class OPTCGCrawler:
     BASE_URL = "https://www.onepiece-cardgame.com"
 
-    def __init__(self, progress_callback=None):
+    def __init__(
+        self,
+        progress_callback=None,
+        gcs_data_bucket: str | None = None,
+        gcs_images_bucket: str | None = None,
+    ):
         self.driver = None
         self.all_cards = {}
         self.progress_callback = progress_callback
+        self.gcs_data_bucket = gcs_data_bucket
+        self.gcs_images_bucket = gcs_images_bucket
+        self.gcs_client = None
+
+        # GCS使用時はクライアントを初期化
+        if self.gcs_data_bucket or self.gcs_images_bucket:
+            try:
+                from google.cloud import storage
+                self.gcs_client = storage.Client()
+            except ImportError:
+                print("Warning: google-cloud-storage not installed, GCS disabled")
+
         self._load_existing_cards()
 
     def _report_progress(self, **kwargs):
@@ -52,7 +69,22 @@ class OPTCGCrawler:
             self.progress_callback(kwargs)
 
     def _load_existing_cards(self):
-        """既存のカードデータを読み込む"""
+        """既存のカードデータを読み込む（GCS優先）"""
+        # GCSから読み込み
+        if self.gcs_client and self.gcs_data_bucket:
+            try:
+                bucket = self.gcs_client.bucket(self.gcs_data_bucket)
+                blob = bucket.blob("all_cards.json")
+                if blob.exists():
+                    content = blob.download_as_text()
+                    data = json.loads(content)
+                    self.all_cards = data.get("cards", {})
+                    print(f"GCSから既存カードデータ: {len(self.all_cards)}枚")
+                    return
+            except Exception as e:
+                print(f"GCS読み込みエラー: {e}")
+
+        # ローカルから読み込み
         if CARDS_DATA_FILE.exists():
             with open(CARDS_DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -60,15 +92,30 @@ class OPTCGCrawler:
             print(f"既存カードデータ: {len(self.all_cards)}枚")
 
     def _save_cards(self):
-        """カードデータを保存"""
-        DATA_DIR.mkdir(exist_ok=True)
+        """カードデータを保存（ローカル＋GCS）"""
         result = {
             "cards": self.all_cards,
             "total_cards": len(self.all_cards),
             "crawled_at": datetime.now().isoformat(),
         }
+
+        # ローカルに保存
+        DATA_DIR.mkdir(exist_ok=True)
         with open(CARDS_DATA_FILE, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2, ensure_ascii=False)
+
+        # GCSにアップロード
+        if self.gcs_client and self.gcs_data_bucket:
+            try:
+                bucket = self.gcs_client.bucket(self.gcs_data_bucket)
+                blob = bucket.blob("all_cards.json")
+                blob.upload_from_string(
+                    json.dumps(result, indent=2, ensure_ascii=False),
+                    content_type="application/json"
+                )
+                print("  GCSにカードデータをアップロードしました")
+            except Exception as e:
+                print(f"  GCSアップロードエラー: {e}")
 
     def _setup_driver(self, headless: bool = True):
         """Chromeドライバーをセットアップ"""
@@ -230,20 +277,55 @@ class OPTCGCrawler:
 
         return card_info
 
-    def _download_image(self, url: str, card_id: str, series_dir: Path) -> bool:
-        """画像をダウンロード"""
+    def _download_image(
+        self, url: str, card_id: str, series_dir: Path, series_id: str
+    ) -> bool:
+        """画像をダウンロード（ローカル＋GCS）"""
         safe_card_id = "".join(c if c.isalnum() or c in "-_" else "_" for c in card_id)
         ext = os.path.splitext(url.split("?")[0])[1] or ".png"
         filepath = series_dir / f"{safe_card_id}{ext}"
+        gcs_path = f"{series_id}/{safe_card_id}{ext}"
 
+        # GCS上に既に存在するかチェック
+        if self.gcs_client and self.gcs_images_bucket:
+            try:
+                bucket = self.gcs_client.bucket(self.gcs_images_bucket)
+                blob = bucket.blob(gcs_path)
+                if blob.exists():
+                    return False  # GCSに既存
+            except Exception:
+                pass
+
+        # ローカルに既存
         if filepath.exists():
-            return False  # 既存
+            # GCSにはないがローカルにある場合、GCSにアップロード
+            if self.gcs_client and self.gcs_images_bucket:
+                try:
+                    bucket = self.gcs_client.bucket(self.gcs_images_bucket)
+                    blob = bucket.blob(gcs_path)
+                    blob.upload_from_filename(str(filepath), content_type="image/png")
+                except Exception:
+                    pass
+            return False
 
         try:
             response = requests.get(url, timeout=30)
             response.raise_for_status()
+            image_data = response.content
+
+            # ローカルに保存
             with open(filepath, "wb") as f:
-                f.write(response.content)
+                f.write(image_data)
+
+            # GCSにアップロード
+            if self.gcs_client and self.gcs_images_bucket:
+                try:
+                    bucket = self.gcs_client.bucket(self.gcs_images_bucket)
+                    blob = bucket.blob(gcs_path)
+                    blob.upload_from_string(image_data, content_type="image/png")
+                except Exception as e:
+                    print(f"    GCS画像アップロードエラー: {e}")
+
             return True
         except requests.RequestException as e:
             print(f"    ダウンロードエラー: {e}")
@@ -326,7 +408,7 @@ class OPTCGCrawler:
             # 画像ダウンロード
             if card_info.get("image_url"):
                 if self._download_image(
-                    card_info["image_url"], card_id, series_dir
+                    card_info["image_url"], card_id, series_dir, series_id
                 ):
                     downloaded += 1
 

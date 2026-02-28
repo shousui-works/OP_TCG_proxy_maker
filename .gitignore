@@ -209,3 +209,11 @@ __marimo__/
 # Project specific
 cards/
 data/
+cache/
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/terraform.tfvars
+terraform/.terraform.lock.hcl

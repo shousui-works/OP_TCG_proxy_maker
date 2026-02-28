@@ -1,19 +1,41 @@
 """
-カード画像配信用のAPIサーバー + デッキブランチ管理 + クローリングAPI
+カード画像配信用のAPIサーバー + デッキブランチ管理
 """
 
+import io
 import json
+import os
 import re
-import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Query, Response
+from PIL import Image
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, field_validator
 
-from crawler import OPTCGCrawler
+# .envファイルを読み込む
+env_path = Path(__file__).parent / ".env"
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip())
+
+# 環境変数から設定を取得
+CARD_IMAGES_BUCKET = os.environ.get("CARD_IMAGES_BUCKET")
+DATA_FILES_BUCKET = os.environ.get("DATA_FILES_BUCKET")
+GCS_PUBLIC_URL = os.environ.get("GCS_PUBLIC_URL")
+USE_GCS = bool(CARD_IMAGES_BUCKET)
+
+# CORS許可オリジン（環境変数から取得、カンマ区切り）
+ALLOWED_ORIGINS = os.environ.get(
+    "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+).split(",")
 
 # ブランチ名・カードIDの検証パターン
 SAFE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-]+$")
@@ -22,7 +44,7 @@ app = FastAPI(title="OP TCG Deck Builder API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,9 +54,27 @@ app.add_middleware(
 BASE_DIR = Path(__file__).parent
 CARDS_DIR = BASE_DIR / "cards"
 DATA_DIR = BASE_DIR / "data"
+THUMB_CACHE_DIR = BASE_DIR / "cache" / "thumbnails"
 DECKS_FILE = DATA_DIR / "decks.json"
 CARDS_DATA_FILE = DATA_DIR / "all_cards.json"
 SERIES_DATA_FILE = DATA_DIR / "series_data.json"
+
+# サムネイルサイズ設定
+THUMBNAIL_SIZES = {
+    "xs": 60,   # デッキリスト用
+    "sm": 120,  # モバイルカードグリッド用
+    "md": 180,  # デスクトップカードグリッド用
+}
+
+# GCS使用時はCloud Storageクライアントを初期化
+gcs_client = None
+if USE_GCS:
+    try:
+        from google.cloud import storage
+        gcs_client = storage.Client()
+    except ImportError:
+        print("Warning: google-cloud-storage not installed, GCS disabled")
+        USE_GCS = False
 
 
 class DeckCard(BaseModel):
@@ -144,6 +184,50 @@ def save_data(data: dict):
 @app.get("/api/cards")
 def list_cards():
     """利用可能なカード一覧を返す（シリーズ別ディレクトリ対応）"""
+    # GCS使用時はGCSからカード一覧を取得
+    if USE_GCS and gcs_client and CARD_IMAGES_BUCKET:
+        return _list_cards_from_gcs()
+
+    # ローカルファイルから取得
+    return _list_cards_from_local()
+
+
+def _list_cards_from_gcs():
+    """GCSからカード一覧を取得"""
+    cards = []
+    bucket = gcs_client.bucket(CARD_IMAGES_BUCKET)
+    blobs = bucket.list_blobs()
+
+    for blob in blobs:
+        if not blob.name.endswith(".png"):
+            continue
+
+        parts = blob.name.rsplit("/", 1)
+        if len(parts) == 2:
+            # シリーズ/カードID.png 形式
+            series_id, filename = parts
+            card_id = filename.replace(".png", "")
+            cards.append({
+                "id": card_id,
+                "name": card_id,
+                "series_id": series_id,
+                "image": f"/api/cards/{series_id}/{card_id}/image",
+            })
+        else:
+            # カードID.png 形式（旧形式）
+            card_id = blob.name.replace(".png", "")
+            cards.append({
+                "id": card_id,
+                "name": card_id,
+                "series_id": None,
+                "image": f"/api/cards/{card_id}/image",
+            })
+
+    return {"cards": sorted(cards, key=lambda x: (x["series_id"] or "", x["id"]))}
+
+
+def _list_cards_from_local():
+    """ローカルファイルからカード一覧を取得"""
     if not CARDS_DIR.exists():
         return {"cards": []}
 
@@ -190,6 +274,12 @@ def get_card_image_by_series(series_id: str, card_id: str):
     validate_path_component(series_id, "series_id")
     validate_path_component(card_id, "card_id")
 
+    # GCS使用時はリダイレクト
+    if USE_GCS and GCS_PUBLIC_URL:
+        gcs_url = f"{GCS_PUBLIC_URL}/{series_id}/{card_id}.png"
+        return RedirectResponse(url=gcs_url, status_code=302)
+
+    # ローカルファイルから配信
     img_path = CARDS_DIR / series_id / f"{card_id}.png"
 
     # 追加のセキュリティチェック: パスがCARDS_DIR内に収まっているか確認
@@ -217,6 +307,12 @@ def get_card_image(card_id: str):
     """カード画像を返す（旧形式互換）"""
     validate_path_component(card_id, "card_id")
 
+    # GCS使用時はリダイレクト
+    if USE_GCS and GCS_PUBLIC_URL:
+        gcs_url = f"{GCS_PUBLIC_URL}/{card_id}.png"
+        return RedirectResponse(url=gcs_url, status_code=302)
+
+    # ローカルファイルから配信
     img_path = CARDS_DIR / f"{card_id}.png"
 
     # 追加のセキュリティチェック: パスがCARDS_DIR内に収まっているか確認
@@ -235,6 +331,115 @@ def get_card_image(card_id: str):
         headers={
             "Access-Control-Allow-Origin": "*",
             "Cache-Control": "public, max-age=86400",
+        },
+    )
+
+
+def _generate_thumbnail(img_path: Path, size: int) -> bytes:
+    """サムネイルを生成してバイト列を返す"""
+    with Image.open(img_path) as img:
+        # アスペクト比を維持してリサイズ
+        width, height = img.size
+        ratio = size / width
+        new_height = int(height * ratio)
+
+        # LANCZOS（高品質）でリサイズ
+        img_resized = img.resize((size, new_height), Image.Resampling.LANCZOS)
+
+        # WebP形式で出力（高圧縮・高品質）
+        buffer = io.BytesIO()
+        img_resized.save(buffer, format="WEBP", quality=80)
+        return buffer.getvalue()
+
+
+def _get_or_create_thumbnail(
+    img_path: Path, series_id: str | None, card_id: str, size_name: str
+) -> bytes:
+    """キャッシュからサムネイルを取得、なければ生成"""
+    size = THUMBNAIL_SIZES.get(size_name, THUMBNAIL_SIZES["sm"])
+
+    # キャッシュパスを構築
+    if series_id:
+        cache_path = THUMB_CACHE_DIR / size_name / series_id / f"{card_id}.webp"
+    else:
+        cache_path = THUMB_CACHE_DIR / size_name / f"{card_id}.webp"
+
+    # キャッシュが存在すれば返す
+    if cache_path.exists():
+        with open(cache_path, "rb") as f:
+            return f.read()
+
+    # サムネイルを生成
+    content = _generate_thumbnail(img_path, size)
+
+    # キャッシュに保存
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(cache_path, "wb") as f:
+        f.write(content)
+
+    return content
+
+
+@app.get("/api/cards/{series_id}/{card_id}/thumb")
+def get_card_thumbnail_by_series(
+    series_id: str,
+    card_id: str,
+    size: str = Query(default="sm", pattern="^(xs|sm|md)$"),
+):
+    """シリーズ別カードのサムネイル画像を返す"""
+    validate_path_component(series_id, "series_id")
+    validate_path_component(card_id, "card_id")
+
+    # ローカルファイルのパス
+    img_path = CARDS_DIR / series_id / f"{card_id}.png"
+
+    # セキュリティチェック
+    try:
+        img_path.resolve().relative_to(CARDS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    if not img_path.exists():
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    content = _get_or_create_thumbnail(img_path, series_id, card_id, size)
+    return Response(
+        content=content,
+        media_type="image/webp",
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=604800",  # 1週間キャッシュ
+        },
+    )
+
+
+@app.get("/api/cards/{card_id}/thumb")
+def get_card_thumbnail(
+    card_id: str,
+    size: str = Query(default="sm", pattern="^(xs|sm|md)$"),
+):
+    """カードのサムネイル画像を返す（旧形式互換）"""
+    validate_path_component(card_id, "card_id")
+
+    # ローカルファイルのパス
+    img_path = CARDS_DIR / f"{card_id}.png"
+
+    # セキュリティチェック
+    try:
+        img_path.resolve().relative_to(CARDS_DIR.resolve())
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid path")
+
+    if not img_path.exists():
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    content = _get_or_create_thumbnail(img_path, None, card_id, size)
+    return Response(
+        content=content,
+        media_type="image/webp",
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=604800",  # 1週間キャッシュ
         },
     )
 
@@ -397,9 +602,32 @@ def get_deck(branch_name: str):
 
 # --- シリーズ・カードデータAPI ---
 
+def _load_json_from_gcs(bucket_name: str, blob_name: str):
+    """GCSからJSONファイルを読み込む"""
+    if not gcs_client:
+        return None
+    try:
+        bucket = gcs_client.bucket(bucket_name)
+        blob = bucket.blob(blob_name)
+        if not blob.exists():
+            return None
+        content = blob.download_as_text()
+        return json.loads(content)
+    except Exception as e:
+        print(f"Error loading {blob_name} from GCS: {e}")
+        return None
+
+
 @app.get("/api/series")
 def get_series():
     """シリーズ一覧を取得"""
+    # GCS使用時はGCSから取得
+    if USE_GCS and DATA_FILES_BUCKET:
+        data = _load_json_from_gcs(DATA_FILES_BUCKET, "series_data.json")
+        if data:
+            return data
+
+    # ローカルファイルから取得
     if not SERIES_DATA_FILE.exists():
         return {"series": [], "last_updated": None}
 
@@ -410,164 +638,18 @@ def get_series():
 @app.get("/api/cards/data")
 def get_cards_data():
     """保存済みのカードデータを取得"""
+    # GCS使用時はGCSから取得
+    if USE_GCS and DATA_FILES_BUCKET:
+        data = _load_json_from_gcs(DATA_FILES_BUCKET, "all_cards.json")
+        if data:
+            return data
+
+    # ローカルファイルから取得
     if not CARDS_DATA_FILE.exists():
         return {"cards": {}, "total_cards": 0, "crawled_at": None}
 
     with open(CARDS_DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
-
-
-# --- クローリングAPI ---
-
-# クローリング状態を管理
-crawl_state = {
-    "is_running": False,
-    "status": "idle",  # idle, running, completed, error
-    "series_id": "",
-    "series_name": "",
-    "progress": 0,
-    "total": 0,
-    "new_cards": 0,
-    "skipped": 0,
-    "downloaded": 0,
-    "message": "",
-    "errors": [],
-}
-crawl_lock = threading.Lock()
-
-
-class CrawlRequest(BaseModel):
-    series_id: str
-    force: bool = False
-
-
-class CrawlAllRequest(BaseModel):
-    force: bool = False
-
-
-def update_crawl_progress(data: dict):
-    """クローリング進捗を更新"""
-    with crawl_lock:
-        crawl_state.update(data)
-
-
-def run_crawl_series(series_id: str, force: bool = False):
-    """シリーズをクロール（バックグラウンド実行）"""
-    global crawl_state
-
-    with crawl_lock:
-        crawl_state["is_running"] = True
-        crawl_state["status"] = "running"
-        crawl_state["series_id"] = series_id
-        crawl_state["progress"] = 0
-        crawl_state["total"] = 0
-        crawl_state["new_cards"] = 0
-        crawl_state["skipped"] = 0
-        crawl_state["downloaded"] = 0
-        crawl_state["message"] = "クローラーを起動中..."
-        crawl_state["errors"] = []
-
-    try:
-        crawler = OPTCGCrawler(progress_callback=update_crawl_progress)
-
-        # シリーズ名を取得
-        series_list = crawler.get_series_list()
-        series_name = next(
-            (s["name"] for s in series_list if s["id"] == series_id), ""
-        )
-
-        with crawl_lock:
-            crawl_state["series_name"] = series_name
-            crawl_state["message"] = f"クロール中: {series_name}"
-
-        crawler._setup_driver()
-        try:
-            crawler.crawl_series(series_id, series_name, force=force)
-        finally:
-            crawler._close_driver()
-
-        with crawl_lock:
-            crawl_state["status"] = "completed"
-            crawl_state["message"] = f"完了: {series_name}"
-            crawl_state["is_running"] = False
-
-    except Exception as e:
-        with crawl_lock:
-            crawl_state["status"] = "error"
-            crawl_state["message"] = f"エラー: {str(e)}"
-            crawl_state["errors"].append(str(e))
-            crawl_state["is_running"] = False
-
-
-def run_crawl_all(force: bool = False):
-    """全シリーズをクロール（バックグラウンド実行）"""
-    global crawl_state
-
-    with crawl_lock:
-        crawl_state["is_running"] = True
-        crawl_state["status"] = "running"
-        crawl_state["progress"] = 0
-        crawl_state["total"] = 0
-        crawl_state["new_cards"] = 0
-        crawl_state["skipped"] = 0
-        crawl_state["downloaded"] = 0
-        crawl_state["message"] = "全シリーズクロールを開始..."
-        crawl_state["errors"] = []
-
-    try:
-        crawler = OPTCGCrawler(progress_callback=update_crawl_progress)
-        crawler.crawl_all(force=force)
-
-        with crawl_lock:
-            crawl_state["status"] = "completed"
-            crawl_state["message"] = f"完了: {len(crawler.all_cards)}枚"
-            crawl_state["is_running"] = False
-
-    except Exception as e:
-        with crawl_lock:
-            crawl_state["status"] = "error"
-            crawl_state["message"] = f"エラー: {str(e)}"
-            crawl_state["errors"].append(str(e))
-            crawl_state["is_running"] = False
-
-
-@app.get("/api/crawl/status")
-def get_crawl_status():
-    """クローリング状態を取得"""
-    with crawl_lock:
-        return crawl_state.copy()
-
-
-@app.post("/api/crawl/series")
-def start_crawl_series(
-    request: CrawlRequest, background_tasks: BackgroundTasks
-):
-    """特定シリーズのクロールを開始"""
-    with crawl_lock:
-        if crawl_state["is_running"]:
-            raise HTTPException(
-                status_code=400, detail="Crawling is already running"
-            )
-
-    background_tasks.add_task(
-        run_crawl_series, request.series_id, request.force
-    )
-    return {"message": f"Crawling started for series {request.series_id}"}
-
-
-@app.post("/api/crawl/all")
-def start_crawl_all(
-    request: CrawlAllRequest, background_tasks: BackgroundTasks
-):
-    """全シリーズのクロールを開始"""
-    with crawl_lock:
-        if crawl_state["is_running"]:
-            raise HTTPException(
-                status_code=400, detail="Crawling is already running"
-            )
-
-    background_tasks.add_task(run_crawl_all, request.force)
-    return {"message": "Crawling all series started"}
 
 
 if __name__ == "__main__":

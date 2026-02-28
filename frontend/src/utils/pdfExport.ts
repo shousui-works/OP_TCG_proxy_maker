@@ -33,8 +33,11 @@ const CARD_HEIGHT = 88
 const COLS = 3
 const ROWS = 3
 const CARDS_PER_PAGE = COLS * ROWS
-const MARGIN_X = (A4_WIDTH - CARD_WIDTH * COLS) / 2
-const MARGIN_Y = (A4_HEIGHT - CARD_HEIGHT * ROWS) / 2
+const LINE_WIDTH = 0.5 // Gap between cards for cut lines
+const GRID_WIDTH = CARD_WIDTH * COLS + LINE_WIDTH * (COLS + 1)
+const GRID_HEIGHT = CARD_HEIGHT * ROWS + LINE_WIDTH * (ROWS + 1)
+const MARGIN_X = (A4_WIDTH - GRID_WIDTH) / 2
+const MARGIN_Y = (A4_HEIGHT - GRID_HEIGHT) / 2
 
 /**
  * Convert Blob to base64 string
@@ -71,14 +74,34 @@ function expandDeck(deck: DeckCard[], leader: Card | null): Card[] {
 }
 
 /**
- * Calculate card position on page
+ * Calculate card position on page (with gaps for cut lines)
  */
 function getCardPosition(index: number): { x: number; y: number } {
   const col = index % COLS
   const row = Math.floor(index / COLS)
   return {
-    x: MARGIN_X + col * CARD_WIDTH,
-    y: MARGIN_Y + row * CARD_HEIGHT
+    x: MARGIN_X + LINE_WIDTH + col * (CARD_WIDTH + LINE_WIDTH),
+    y: MARGIN_Y + LINE_WIDTH + row * (CARD_HEIGHT + LINE_WIDTH)
+  }
+}
+
+/**
+ * Draw cut lines (grid lines between cards)
+ */
+function drawCutLines(pdf: jsPDF): void {
+  pdf.setDrawColor(0) // Black
+  pdf.setLineWidth(LINE_WIDTH)
+
+  // Vertical lines (between columns and at edges)
+  for (let col = 0; col <= COLS; col++) {
+    const x = MARGIN_X + LINE_WIDTH / 2 + col * (CARD_WIDTH + LINE_WIDTH)
+    pdf.line(x, MARGIN_Y, x, MARGIN_Y + GRID_HEIGHT)
+  }
+
+  // Horizontal lines (between rows and at edges)
+  for (let row = 0; row <= ROWS; row++) {
+    const y = MARGIN_Y + LINE_WIDTH / 2 + row * (CARD_HEIGHT + LINE_WIDTH)
+    pdf.line(MARGIN_X, y, MARGIN_X + GRID_WIDTH, y)
   }
 }
 
@@ -158,6 +181,9 @@ export async function exportDeckToPDF(
       format: 'a4'
     })
 
+    // Draw cut lines on first page
+    drawCutLines(pdf)
+
     // Add cards to PDF
     for (let i = 0; i < allCards.length; i++) {
       const card = allCards[i]
@@ -166,6 +192,7 @@ export async function exportDeckToPDF(
       // Add new page if needed (not for first card)
       if (positionOnPage === 0 && i > 0) {
         pdf.addPage()
+        drawCutLines(pdf) // Draw cut lines on new page
       }
 
       // Get position

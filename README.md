@@ -4,7 +4,7 @@ ONE PIECE カードゲームのデッキビルダー＆プロキシメーカー
 
 ## 機能
 
-- **カードクローラー**: 公式サイトからカード画像を取得
+- **カードクローラー**: 公式サイトからカード画像・情報を取得
 - **デッキビルダー**: 50枚のデッキを構築するWebアプリ
 - **ブランチ機能**: GitHubライクなブランチ管理で複数のデッキ構築案を並行管理
 
@@ -27,20 +27,44 @@ uv sync
 cd frontend && npm install
 ```
 
-## 使い方
+### 環境変数
 
-### 1. カード画像をダウンロード
+`.env.example` を `.env` にコピーして設定:
 
 ```bash
-uv run python crawler.py
+cp .env.example .env
 ```
 
-カード画像は `cards/` フォルダに保存されます。
+## 使い方
 
-`crawler.py` の `series_url` を変更して別のシリーズを取得できます:
+### 1. カード画像をダウンロード（クローラー）
 
-```python
-series_url = "https://www.onepiece-cardgame.com/cardlist/?series=550115"
+```bash
+# シリーズ一覧を表示
+uv run python crawler.py --list
+
+# 特定シリーズをクロール
+uv run python crawler.py --series 569901
+
+# 全シリーズをクロール
+uv run python crawler.py --all
+
+# 既存カードも強制的に再取得
+uv run python crawler.py --all --force
+```
+
+カード画像は `cards/{series_id}/` に、カード情報は `data/all_cards.json` に保存されます。
+
+#### GCSにアップロードする場合
+
+```bash
+# GCS認証
+gcloud auth application-default login
+
+# 環境変数を設定して実行
+CARD_IMAGES_BUCKET=your-bucket-card-images \
+DATA_FILES_BUCKET=your-bucket-data-files \
+uv run python crawler.py --all
 ```
 
 ### 2. デッキビルダーを起動
@@ -95,19 +119,22 @@ OP_tcg_proxy_maker/
 ├── crawler.py       # カード画像クローラー
 ├── server.py        # FastAPI バックエンド
 ├── cards/           # ダウンロードしたカード画像
-├── data/            # デッキ・ブランチデータ (JSON)
+├── data/            # カード・デッキデータ (JSON)
 ├── frontend/        # React フロントエンド
-│   └── src/
-│       ├── App.tsx
-│       └── App.css
-└── pyproject.toml   # Python プロジェクト設定
+├── docker/          # Dockerfiles
+└── terraform/       # インフラ定義 (GCP)
 ```
+
+## デプロイ
+
+Cloud Run にデプロイする場合は `terraform/` を参照。
 
 ## 技術スタック
 
 - **バックエンド**: Python, FastAPI, Selenium
 - **フロントエンド**: React, TypeScript, Vite
-- **データ**: JSON ファイル
+- **インフラ**: GCP (Cloud Run, Cloud Storage), Terraform
+- **認証**: Firebase Authentication
 
 ## ライセンス
 
