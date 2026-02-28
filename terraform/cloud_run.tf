@@ -39,7 +39,7 @@ resource "google_cloud_run_v2_service" "backend" {
 
       env {
         name  = "ALLOWED_ORIGINS"
-        value = google_cloud_run_v2_service.frontend.uri
+        value = "https://op-tcg-frontend-265857555428.asia-northeast1.run.app"
       }
 
       ports {

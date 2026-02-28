@@ -89,6 +89,37 @@
   background: var(--color-accent);
 }
 
+.card-pool-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.hover-zoom-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  transition: var(--transition-fast);
+}
+
+.hover-zoom-toggle:hover {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.hover-zoom-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
 /* Card Grid Container */
 .card-grid-container {
   flex: 1;
@@ -96,6 +127,13 @@
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   padding: var(--spacing-xs);
+}
+
+/* PC版ではホバー拡大のためにpaddingを追加（拡大時にクリップされないように） */
+@media (min-width: 768px) and (hover: hover) {
+  .card-grid {
+    padding: 40px;
+  }
 }
 
 /* Card Grid - CSS Grid レスポンシブ */
@@ -140,6 +178,17 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* PC版でホバー時はoverflowを解除 */
+@media (min-width: 768px) and (hover: hover) {
+  .card-item {
+    overflow: visible;
+  }
+
+  .card-item img {
+    border-radius: var(--radius-md);
+  }
+}
+
 .card-item:active {
   transform: scale(0.98);
 }
@@ -147,6 +196,23 @@
 .card-item.maxed {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* PC版: ホバー時に拡大表示（.card-gridで詳細度を上げて後続ルールを上書き） */
+@media (min-width: 768px) and (hover: hover) {
+  .card-grid .card-item {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, z-index 0s;
+  }
+
+  .card-grid .card-item:hover {
+    transform: scale(1.8);
+    z-index: 100;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .card-grid .card-item:active {
+    transform: scale(1.7);
+  }
 }
 
 .card-item img {
@@ -571,6 +637,109 @@
   color: var(--color-text-secondary);
   font-size: 0.875rem;
   margin: 0;
+}
+
+/* Image Preview Modal */
+.image-preview-modal {
+  max-width: 90vw;
+  max-height: 90vh;
+  width: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.image-preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--color-bg-tertiary);
+}
+
+.image-preview-header h3 {
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  line-height: 1;
+  transition: var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  color: var(--color-text-primary);
+}
+
+.modal-close-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.image-preview-content {
+  flex: 1;
+  overflow: auto;
+  padding: var(--spacing-md);
+  background: var(--color-bg-primary);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.image-preview-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-top: 1px solid var(--color-bg-tertiary);
+  justify-content: flex-end;
+}
+
+.image-preview-actions button {
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.image-preview-actions button.secondary {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-bg-tertiary);
+}
+
+.image-preview-actions button.secondary:hover {
+  background: var(--color-bg-primary);
+}
+
+.image-preview-actions button.primary {
+  background: var(--color-accent);
+  color: var(--color-bg-primary);
+  border: none;
+}
+
+.image-preview-actions button.primary:hover {
+  opacity: 0.9;
+}
+
+.image-preview-actions button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 /* PDF Select Modal */

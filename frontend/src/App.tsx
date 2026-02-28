@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import './App.css'
 import { exportDeckToPDF } from './utils/pdfExport'
+import { exportDeckToImage } from './utils/deckImageExport'
 import { useAuth } from './contexts/AuthContext'
 import { useFirestoreDeck } from './hooks/useFirestoreDeck'
 import { useResponsive } from './hooks/useResponsive'
@@ -63,6 +64,10 @@ function App() {
   const [newDeckName, setNewDeckName] = useState('')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
+  // ホバープレビュー状態（PC版）
+  const [hoverCard, setHoverCard] = useState<{ card: Card; x: number; y: number } | null>(null)
+  const [enableHoverZoom, setEnableHoverZoom] = useState(false)
+
   // PDF生成状態
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [pdfSelectedCards, setPdfSelectedCards] = useState<Map<string, number>>(new Map())
@@ -71,6 +76,12 @@ function App() {
   const [pdfProgress, setPdfProgress] = useState(0)
   const [pdfLoadedCount, setPdfLoadedCount] = useState(0)
   const [pdfTotalCount, setPdfTotalCount] = useState(0)
+
+  // 画像出力状態
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+  const [imageProgress, setImageProgress] = useState(0)
+  const [showImageModal, setShowImageModal] = useState(false)
+  const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null)
 
   // フィルター・検索
   const [series, setSeries] = useState<Series[]>([])
@@ -196,7 +207,8 @@ function App() {
 
   // 保存済みデッキを初期化
   useEffect(() => {
-    fetchSavedDecks()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchSavedDecks()
   }, [fetchSavedDecks])
 
   // フィルター済みカード（useMemoで最適化）
@@ -455,6 +467,57 @@ function App() {
     }
   }
 
+  // デッキ画像出力
+  const handleExportImage = async () => {
+    if (deck.length === 0 && !leader) return
+
+    setIsGeneratingImage(true)
+    setImageProgress(0)
+
+    const result = await exportDeckToImage({
+      deck,
+      leader,
+      apiBase: API_BASE,
+      onProgress: (progress) => {
+        setImageProgress(progress)
+      }
+    })
+
+    setIsGeneratingImage(false)
+
+    if (!result.success) {
+      alert(`画像生成に失敗しました: ${result.error}`)
+    } else if (result.imageDataUrl) {
+      setGeneratedImageUrl(result.imageDataUrl)
+      setShowImageModal(true)
+    }
+  }
+
+  // 画像をダウンロード
+  const downloadImage = () => {
+    if (!generatedImageUrl) return
+    const timestamp = new Date().toISOString().slice(0, 10)
+    const link = document.createElement('a')
+    link.download = `deck_image_${timestamp}.png`
+    link.href = generatedImageUrl
+    link.click()
+  }
+
+  // 画像をクリップボードにコピー
+  const copyImageToClipboard = async () => {
+    if (!generatedImageUrl) return
+    try {
+      const response = await fetch(generatedImageUrl)
+      const blob = await response.blob()
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': blob })
+      ])
+      alert('画像をクリップボードにコピーしました')
+    } catch {
+      alert('クリップボードへのコピーに失敗しました')
+    }
+  }
+
   const getCardCount = (cardId: string) => {
     return deckMap.get(cardId) || 0
   }
@@ -575,12 +638,22 @@ function App() {
             <h2>カードプール ({filteredCards.length}/{cards.length}枚)</h2>
             {/* デスクトップ: インラインフィルター */}
             {!isMobile && (
-              <button
-                className="filter-toggle-btn"
-                onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
-              >
-                フィルター {hasActiveFilters && `(${selectedColors.length + selectedCardTypes.length + selectedRarities.length + selectedSeries.length})`}
-              </button>
+              <div className="card-pool-controls">
+                <label className="hover-zoom-toggle">
+                  <input
+                    type="checkbox"
+                    checked={enableHoverZoom}
+                    onChange={(e) => setEnableHoverZoom(e.target.checked)}
+                  />
+                  拡大表示
+                </label>
+                <button
+                  className="filter-toggle-btn"
+                  onClick={() => setIsFilterPanelOpen(!isFilterPanelOpen)}
+                >
+                  フィルター {hasActiveFilters && `(${selectedColors.length + selectedCardTypes.length + selectedRarities.length + selectedSeries.length})`}
+                </button>
+              </div>
             )}
           </div>
 
@@ -619,9 +692,16 @@ function App() {
                     key={card.id}
                     className={`card-item ${count >= MAX_COPIES ? 'maxed' : ''}`}
                     onClick={() => !isMobile && addToDeck(card)}
+                    onMouseEnter={(e) => {
+                      if (!isMobile && enableHoverZoom) {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setHoverCard({ card, x: rect.right + 10, y: rect.top })
+                      }
+                    }}
+                    onMouseLeave={() => enableHoverZoom && setHoverCard(null)}
                   >
                     <img
-                      src={`${API_BASE}${card.image.replace('/image', '/thumb')}?size=sm`}
+                      src={`${API_BASE}${card.image}`}
                       alt={card.name}
                       loading="lazy"
                     />
@@ -663,7 +743,14 @@ function App() {
                 disabled={deck.length === 0 && !leader}
                 className="export-button"
               >
-                プロキシ作成
+                プロキシ
+              </button>
+              <button
+                onClick={handleExportImage}
+                disabled={deck.length === 0 && !leader}
+                className="export-button"
+              >
+                画像出力
               </button>
               <button onClick={clearDeck} disabled={deck.length === 0 && !leader}>
                 クリア
@@ -676,7 +763,7 @@ function App() {
             {leader ? (
               <div className="leader-card">
                 <img
-                  src={`${API_BASE}${leader.image.replace('/image', '/thumb')}?size=sm`}
+                  src={`${API_BASE}${leader.image}`}
                   alt={leader.name}
                 />
                 <div className="leader-info">
@@ -700,7 +787,7 @@ function App() {
             {deck.map(card => (
               <div key={card.id} className="deck-card">
                 <img
-                  src={`${API_BASE}${card.image.replace('/image', '/thumb')}?size=xs`}
+                  src={`${API_BASE}${card.image}`}
                   alt={card.name}
                 />
                 <div className="deck-card-info">
@@ -832,6 +919,30 @@ function App() {
         </div>
       )}
 
+      {/* ホバープレビュー（PC版） */}
+      {hoverCard && !isMobile && enableHoverZoom && (
+        <div
+          className="card-preview"
+          style={{
+            position: 'fixed',
+            left: Math.min(hoverCard.x, window.innerWidth - 320),
+            top: Math.max(10, Math.min(hoverCard.y, window.innerHeight - 450)),
+            zIndex: 9999,
+            pointerEvents: 'none',
+          }}
+        >
+          <img
+            src={`${API_BASE}${hoverCard.card.image}`}
+            alt={hoverCard.card.name}
+            style={{
+              width: '300px',
+              borderRadius: '8px',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.6)',
+            }}
+          />
+        </div>
+      )}
+
       {/* プロキシ生成中モーダル */}
       {isGeneratingPDF && (
         <div className="modal-overlay">
@@ -846,6 +957,56 @@ function App() {
             <p className="progress-text">
               {pdfProgress}% - 画像読込中 ({pdfLoadedCount}/{pdfTotalCount})
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* 画像生成中モーダル */}
+      {isGeneratingImage && (
+        <div className="modal-overlay">
+          <div className="modal pdf-modal">
+            <h3>デッキ画像作成中...</h3>
+            <div className="progress-bar">
+              <div
+                className="progress-fill"
+                style={{ width: `${imageProgress}%` }}
+              />
+            </div>
+            <p className="progress-text">
+              {imageProgress}% - 画像読込中
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 生成画像プレビューモーダル */}
+      {showImageModal && generatedImageUrl && (
+        <div className="modal-overlay" onClick={() => setShowImageModal(false)}>
+          <div className="modal image-preview-modal" onClick={e => e.stopPropagation()}>
+            <div className="image-preview-header">
+              <h3>デッキ画像</h3>
+              <button
+                className="modal-close-btn"
+                onClick={() => setShowImageModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="image-preview-content">
+              <img
+                src={generatedImageUrl}
+                alt="デッキ画像"
+                className="preview-image"
+              />
+            </div>
+            <div className="image-preview-actions">
+              <button onClick={copyImageToClipboard} className="secondary">
+                コピー
+              </button>
+              <button onClick={downloadImage} className="primary">
+                ダウンロード
+              </button>
+            </div>
           </div>
         </div>
       )}

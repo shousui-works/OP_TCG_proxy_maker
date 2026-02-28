@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query, Response
-from PIL import Image
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
+from PIL import Image
 from pydantic import BaseModel, field_validator
 
 # .envファイルを読み込む
@@ -33,9 +33,14 @@ GCS_PUBLIC_URL = os.environ.get("GCS_PUBLIC_URL")
 USE_GCS = bool(CARD_IMAGES_BUCKET)
 
 # CORS許可オリジン（環境変数から取得、カンマ区切り）
-ALLOWED_ORIGINS = os.environ.get(
-    "ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
-).split(",")
+# ローカル開発用とCloud Run本番環境の両方を許可
+DEFAULT_ORIGINS = ",".join([
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://op-tcg-frontend-265857555428.asia-northeast1.run.app",
+    "https://op-tcg-frontend-n3xjn7ioga-an.a.run.app",
+])
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", DEFAULT_ORIGINS).split(",")
 
 # ブランチ名・カードIDの検証パターン
 SAFE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_\-]+$")
