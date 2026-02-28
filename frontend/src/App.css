@@ -129,13 +129,8 @@
   padding: var(--spacing-xs);
 }
 
-/* PC版ではホバー拡大のためにoverflowを調整 */
+/* PC版ではホバー拡大のためにpaddingを追加（拡大時にクリップされないように） */
 @media (min-width: 768px) and (hover: hover) {
-  .card-grid-container {
-    overflow: visible;
-    overflow-y: auto;
-  }
-
   .card-grid {
     padding: 40px;
   }
@@ -203,19 +198,19 @@
   cursor: not-allowed;
 }
 
-/* PC版: ホバー時に拡大表示 */
+/* PC版: ホバー時に拡大表示（.card-gridで詳細度を上げて後続ルールを上書き） */
 @media (min-width: 768px) and (hover: hover) {
-  .card-item {
+  .card-grid .card-item {
     transition: transform 0.2s ease, box-shadow 0.2s ease, z-index 0s;
   }
 
-  .card-item:hover {
+  .card-grid .card-item:hover {
     transform: scale(1.8);
     z-index: 100;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   }
 
-  .card-item:active {
+  .card-grid .card-item:active {
     transform: scale(1.7);
   }
 }

@@ -7,6 +7,11 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# スクリプトのディレクトリに移動
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$PROJECT_ROOT"
+
 # プロジェクト設定
 PROJECT_ID="op-tcg-project"
 REGION="asia-northeast1"
@@ -15,19 +20,35 @@ REPO="op-tcg-images"
 # 本番環境設定
 PROD_API_BASE="https://op-tcg-backend-265857555428.asia-northeast1.run.app"
 
-# Firebase設定（.envから読み込むか、ここに直接記載）
-VITE_FIREBASE_API_KEY="AIzaSyCvuZTThBROfGsLbhFytL9Oxt_MJt4R3yc"
-VITE_FIREBASE_AUTH_DOMAIN="op-tcg-proxy-maker.firebaseapp.com"
-VITE_FIREBASE_PROJECT_ID="op-tcg-proxy-maker"
-VITE_FIREBASE_STORAGE_BUCKET="op-tcg-proxy-maker.firebasestorage.app"
-VITE_FIREBASE_MESSAGING_SENDER_ID="34223040991"
-VITE_FIREBASE_APP_ID="1:34223040991:web:effbe8d8c32b259a9a3c6a"
-VITE_ADMIN_EMAIL="shousui.works@gmail.com"
+# Firebase設定（.env.productionから読み込み）
+if [ -f "$PROJECT_ROOT/.env.production" ]; then
+  echo -e "${YELLOW}>>> .env.productionから環境変数を読み込み中...${NC}"
+  set -a
+  source "$PROJECT_ROOT/.env.production"
+  set +a
+fi
 
-# スクリプトのディレクトリに移動
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-cd "$PROJECT_ROOT"
+# 必須環境変数のチェック
+check_required_vars() {
+  local missing=()
+
+  [ -z "$VITE_FIREBASE_API_KEY" ] && missing+=("VITE_FIREBASE_API_KEY")
+  [ -z "$VITE_FIREBASE_AUTH_DOMAIN" ] && missing+=("VITE_FIREBASE_AUTH_DOMAIN")
+  [ -z "$VITE_FIREBASE_PROJECT_ID" ] && missing+=("VITE_FIREBASE_PROJECT_ID")
+  [ -z "$VITE_FIREBASE_STORAGE_BUCKET" ] && missing+=("VITE_FIREBASE_STORAGE_BUCKET")
+  [ -z "$VITE_FIREBASE_MESSAGING_SENDER_ID" ] && missing+=("VITE_FIREBASE_MESSAGING_SENDER_ID")
+  [ -z "$VITE_FIREBASE_APP_ID" ] && missing+=("VITE_FIREBASE_APP_ID")
+  [ -z "$VITE_ADMIN_EMAIL" ] && missing+=("VITE_ADMIN_EMAIL")
+
+  if [ ${#missing[@]} -gt 0 ]; then
+    echo -e "${RED}エラー: 以下の必須環境変数が設定されていません:${NC}"
+    printf '  - %s\n' "${missing[@]}"
+    echo ""
+    echo ".env.production ファイルを作成するか、環境変数を設定してください。"
+    echo "例: cp .env.example .env.production && vi .env.production"
+    exit 1
+  fi
+}
 
 echo -e "${GREEN}=== OP TCG デプロイスクリプト ===${NC}"
 echo "プロジェクト: $PROJECT_ID"
@@ -65,6 +86,9 @@ gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
 
 # フロントエンドのデプロイ
 if [ "$DEPLOY_FRONTEND" = true ]; then
+  # 必須環境変数チェック
+  check_required_vars
+
   echo ""
   echo -e "${GREEN}=== フロントエンドのビルド＆デプロイ ===${NC}"
 

@@ -82,6 +82,9 @@ export async function exportDeckToImage(
 ): Promise<DeckImageExportResult> {
   const { deck, leader, apiBase, onProgress } = options
 
+  // Container reference for cleanup in finally block
+  let container: HTMLDivElement | null = null
+
   try {
     const groupedDeck = groupDeckCards(deck)
     const totalCards = groupedDeck.length + (leader ? 1 : 0)
@@ -113,7 +116,7 @@ export async function exportDeckToImage(
     const totalWidth = PADDING * 2 + COLS * CARD_WIDTH + (COLS - 1) * GAP
 
     // Create container div
-    const container = document.createElement('div')
+    container = document.createElement('div')
     container.style.cssText = `
       position: fixed;
       left: -9999px;
@@ -328,9 +331,6 @@ export async function exportDeckToImage(
       backgroundColor: '#ffffff',
     })
 
-    // Remove container
-    document.body.removeChild(container)
-
     onProgress?.(100, totalCards, totalCards)
 
     // Generate image data URL
@@ -345,6 +345,11 @@ export async function exportDeckToImage(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  } finally {
+    // Always cleanup container from DOM to prevent memory leaks
+    if (container && container.parentNode) {
+      container.parentNode.removeChild(container)
     }
   }
 }
