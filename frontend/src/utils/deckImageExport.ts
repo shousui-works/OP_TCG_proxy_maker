@@ -65,13 +65,22 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
 }
 
 /**
- * Group deck cards by unique card and count
- * Returns cards sorted for display
+ * Group deck cards by unique card and aggregate counts
+ * Returns cards sorted by ID for display
  */
 function groupDeckCards(deck: DeckCard[]): DeckCard[] {
-  return [...deck].sort((a, b) => {
-    return a.id.localeCompare(b.id)
-  })
+  const grouped = new Map<string, DeckCard>()
+
+  for (const card of deck) {
+    const existing = grouped.get(card.id)
+    if (existing) {
+      existing.count += card.count
+    } else {
+      grouped.set(card.id, { ...card })
+    }
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => a.id.localeCompare(b.id))
 }
 
 /**
