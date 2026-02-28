@@ -107,6 +107,7 @@ export function useFirestoreDeck() {
       console.error('Failed to fetch branches:', error)
       return { branches: [], currentBranch: 'main' }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, getBranchesCollection, getSettingsDoc])
 
   const createBranch = useCallback(

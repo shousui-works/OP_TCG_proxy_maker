@@ -61,7 +61,9 @@ export function useResponsive(): ResponsiveState {
     })
   }, [])
 
+  // ウィンドウリサイズの監視は外部システムとの同期なので正当なuseEffect
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
