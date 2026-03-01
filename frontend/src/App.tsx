@@ -551,16 +551,17 @@ function App() {
     setShowImportExportModal(true)
   }
 
-  const handleImportDeck = (importedDeck: DeckCard[], importedLeader: Card | null) => {
+  const handleImportDeck = (importedDeck: DeckCard[], importedLeader: Card | null): boolean => {
     if (hasUnsavedChanges) {
       if (!confirm('未保存の変更があります。インポートしたデッキで置き換えますか？')) {
-        return
+        return false // Cancel - don't close modal
       }
     }
     setDeck(importedDeck)
     setLeader(importedLeader)
     setCurrentDeckName(null)
     setHasUnsavedChanges(true)
+    return true // Success - close modal
   }
 
   const getCardCount = (cardId: string) => {
@@ -756,8 +757,10 @@ function App() {
                 onClick={openImportModal}
                 className="icon-button"
                 data-tooltip="デッキをインポート"
+                aria-label="デッキをインポート"
+                title="デッキをインポート"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="7 10 12 15 17 10"/>
                   <line x1="12" y1="15" x2="12" y2="3"/>
@@ -768,8 +771,10 @@ function App() {
                 disabled={deck.length === 0 && !leader}
                 className="icon-button"
                 data-tooltip="デッキをエクスポート"
+                aria-label="デッキをエクスポート"
+                title="デッキをエクスポート"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="17 8 12 3 7 8"/>
                   <line x1="12" y1="3" x2="12" y2="15"/>
@@ -780,8 +785,10 @@ function App() {
                 disabled={deck.length === 0 && !leader}
                 className="icon-button"
                 data-tooltip="プロキシPDF生成"
+                aria-label="プロキシPDF生成"
+                title="プロキシPDF生成"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
                   <line x1="16" y1="13" x2="8" y2="13"/>
@@ -793,8 +800,10 @@ function App() {
                 disabled={deck.length === 0 && !leader}
                 className="icon-button"
                 data-tooltip="デッキ画像生成"
+                aria-label="デッキ画像生成"
+                title="デッキ画像生成"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                   <circle cx="8.5" cy="8.5" r="1.5"/>
                   <polyline points="21 15 16 10 5 21"/>
@@ -805,8 +814,10 @@ function App() {
                 disabled={deck.length === 0 && !leader}
                 className="icon-button icon-button-danger"
                 data-tooltip="デッキをクリア"
+                aria-label="デッキをクリア"
+                title="デッキをクリア"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <polyline points="3 6 5 6 21 6"/>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                 </svg>

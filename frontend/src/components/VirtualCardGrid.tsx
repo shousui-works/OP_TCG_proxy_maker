@@ -141,6 +141,7 @@ export default function VirtualCardGrid({
             >
               {rowCards.map((card) => {
                 const count = getCardCount(card.id)
+                const canAdd = count < maxCopies
                 return (
                   <div
                     key={card.id}
@@ -149,7 +150,24 @@ export default function VirtualCardGrid({
                       width: `${cardWidth}px`,
                       height: `${cardHeight}px`,
                     }}
-                    onClick={() => !isMobile && onAddToDeck(card)}
+                    onClick={() => !isMobile && canAdd && onAddToDeck(card)}
+                    role={!isMobile ? 'button' : undefined}
+                    tabIndex={!isMobile ? 0 : undefined}
+                    aria-disabled={!isMobile ? !canAdd : undefined}
+                    aria-label={!isMobile ? `${card.name}をデッキに追加` : undefined}
+                    onKeyDown={(e) => {
+                      if (!isMobile && canAdd && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault()
+                        onAddToDeck(card)
+                      }
+                    }}
+                    onFocus={(e) => {
+                      if (!isMobile && enableHoverZoom) {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        onHoverCard(card, rect.right + 10, rect.top)
+                      }
+                    }}
+                    onBlur={() => !isMobile && enableHoverZoom && onHoverCard(null, 0, 0)}
                     onMouseEnter={(e) => {
                       if (!isMobile && enableHoverZoom) {
                         const rect = e.currentTarget.getBoundingClientRect()

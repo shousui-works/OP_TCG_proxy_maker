@@ -14,7 +14,7 @@ interface DeckImportExportModalProps {
   deckName?: string | null
   // Import mode props
   availableCards?: Card[]
-  onImport?: (deck: DeckCard[], leader: Card | null) => void
+  onImport?: (deck: DeckCard[], leader: Card | null) => boolean | void
 }
 
 export default function DeckImportExportModal({
@@ -73,8 +73,11 @@ export default function DeckImportExportModal({
 
   const handleImport = () => {
     if (validationResult?.valid && validationResult.parsedDeck && onImport) {
-      onImport(validationResult.parsedDeck.cards, validationResult.parsedDeck.leader)
-      handleClose()
+      const result = onImport(validationResult.parsedDeck.cards, validationResult.parsedDeck.leader)
+      // Only close if onImport didn't return false (allowing cancel)
+      if (result !== false) {
+        handleClose()
+      }
     }
   }
 
