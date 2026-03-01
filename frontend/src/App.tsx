@@ -12,6 +12,7 @@ import HamburgerMenu from './components/HamburgerMenu'
 import BottomNavigation, { type TabType } from './components/BottomNavigation'
 import FilterPanel from './components/FilterPanel'
 import VirtualCardGrid from './components/VirtualCardGrid'
+import DeckImportExportModal from './components/DeckImportExportModal'
 
 interface Series {
   id: string
@@ -83,6 +84,11 @@ function App() {
   const [imageProgress, setImageProgress] = useState(0)
   const [showImageModal, setShowImageModal] = useState(false)
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null)
+  const [generatedImageFilename, setGeneratedImageFilename] = useState<string | null>(null)
+
+  // Import/Export状態
+  const [showImportExportModal, setShowImportExportModal] = useState(false)
+  const [importExportMode, setImportExportMode] = useState<'import' | 'export'>('export')
 
   // フィルター・検索
   const [series, setSeries] = useState<Series[]>([])
@@ -404,13 +410,26 @@ function App() {
   // PDF出力モーダルを開く
   const openPdfModal = () => {
     if (deck.length === 0 && !leader) return
-    const initialSelection = new Map<string, number>()
-    deck.forEach(card => {
-      initialSelection.set(card.id, card.count)
-    })
-    setPdfSelectedCards(initialSelection)
-    setPdfIncludeLeader(!!leader)
+    // 初期状態は0枚
+    setPdfSelectedCards(new Map<string, number>())
+    setPdfIncludeLeader(false)
     setShowPdfModal(true)
+  }
+
+  // 全選択
+  const selectAllPdfCards = () => {
+    const allSelection = new Map<string, number>()
+    deck.forEach(card => {
+      allSelection.set(card.id, card.count)
+    })
+    setPdfSelectedCards(allSelection)
+    setPdfIncludeLeader(!!leader)
+  }
+
+  // 全解除
+  const deselectAllPdfCards = () => {
+    setPdfSelectedCards(new Map<string, number>())
+    setPdfIncludeLeader(false)
   }
 
   const updatePdfCardCount = (cardId: string, delta: number) => {
@@ -450,6 +469,7 @@ function App() {
       deck: selectedDeck,
       leader: pdfIncludeLeader ? leader : null,
       apiBase: API_BASE,
+      deckName: currentDeckName,
       onProgress: (progress, loaded, total) => {
         setPdfProgress(progress)
         setPdfLoadedCount(loaded)
@@ -479,6 +499,7 @@ function App() {
       deck,
       leader,
       apiBase: API_BASE,
+      deckName: currentDeckName,
       onProgress: (progress) => {
         setImageProgress(progress)
       }
@@ -490,6 +511,7 @@ function App() {
       alert(`画像生成に失敗しました: ${result.error}`)
     } else if (result.imageDataUrl) {
       setGeneratedImageUrl(result.imageDataUrl)
+      setGeneratedImageFilename(result.filename || 'deck_image.png')
       setShowImageModal(true)
     }
   }
@@ -497,9 +519,8 @@ function App() {
   // 画像をダウンロード
   const downloadImage = () => {
     if (!generatedImageUrl) return
-    const timestamp = new Date().toISOString().slice(0, 10)
     const link = document.createElement('a')
-    link.download = `deck_image_${timestamp}.png`
+    link.download = generatedImageFilename || 'deck_image.png'
     link.href = generatedImageUrl
     link.click()
   }
@@ -517,6 +538,29 @@ function App() {
     } catch {
       alert('クリップボードへのコピーに失敗しました')
     }
+  }
+
+  // Import/Export
+  const openExportModal = () => {
+    setImportExportMode('export')
+    setShowImportExportModal(true)
+  }
+
+  const openImportModal = () => {
+    setImportExportMode('import')
+    setShowImportExportModal(true)
+  }
+
+  const handleImportDeck = (importedDeck: DeckCard[], importedLeader: Card | null) => {
+    if (hasUnsavedChanges) {
+      if (!confirm('未保存の変更があります。インポートしたデッキで置き換えますか？')) {
+        return
+      }
+    }
+    setDeck(importedDeck)
+    setLeader(importedLeader)
+    setCurrentDeckName(null)
+    setHasUnsavedChanges(true)
   }
 
   const getCardCount = (cardId: string) => {
@@ -709,21 +753,63 @@ function App() {
             <h2>デッキ ({deckCount}/{MAX_DECK_SIZE})</h2>
             <div className="deck-actions">
               <button
+                onClick={openImportModal}
+                className="icon-button"
+                data-tooltip="デッキをインポート"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </button>
+              <button
+                onClick={openExportModal}
+                disabled={deck.length === 0 && !leader}
+                className="icon-button"
+                data-tooltip="デッキをエクスポート"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </button>
+              <button
                 onClick={openPdfModal}
                 disabled={deck.length === 0 && !leader}
-                className="export-button"
+                className="icon-button"
+                data-tooltip="プロキシPDF生成"
               >
-                プロキシ
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
               </button>
               <button
                 onClick={handleExportImage}
                 disabled={deck.length === 0 && !leader}
-                className="export-button"
+                className="icon-button"
+                data-tooltip="デッキ画像生成"
               >
-                画像出力
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
               </button>
-              <button onClick={clearDeck} disabled={deck.length === 0 && !leader}>
-                クリア
+              <button
+                onClick={clearDeck}
+                disabled={deck.length === 0 && !leader}
+                className="icon-button icon-button-danger"
+                data-tooltip="デッキをクリア"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
               </button>
             </div>
           </div>
@@ -829,6 +915,15 @@ function App() {
             <p className="modal-desc">
               作成するカードと枚数を選択してください（合計: {pdfTotalCards}枚）
             </p>
+
+            <div className="pdf-select-actions">
+              <button onClick={selectAllPdfCards} className="secondary">
+                全て選択
+              </button>
+              <button onClick={deselectAllPdfCards} className="secondary">
+                全て解除
+              </button>
+            </div>
 
             {leader && (
               <div className="pdf-leader-select">
@@ -980,6 +1075,18 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Import/Exportモーダル */}
+      <DeckImportExportModal
+        isOpen={showImportExportModal}
+        onClose={() => setShowImportExportModal(false)}
+        mode={importExportMode}
+        deck={deck}
+        leader={leader}
+        deckName={currentDeckName}
+        availableCards={cards}
+        onImport={handleImportDeck}
+      />
     </div>
   )
 }
