@@ -1,4 +1,5 @@
-import html2canvas from 'html2canvas'
+// html2canvas is loaded dynamically to reduce initial bundle size
+import { generateFilename } from './filename'
 
 // Types
 interface Card {
@@ -15,6 +16,7 @@ interface DeckImageExportOptions {
   deck: DeckCard[]
   leader: Card | null
   apiBase: string
+  deckName?: string | null
   onProgress?: (progress: number, loaded: number, total: number) => void
 }
 
@@ -34,6 +36,12 @@ const PADDING = 20  // px
 const HEADER_HEIGHT = 40  // px
 const CARD_ID_HEIGHT = 25  // px - カードID表示用の高さ
 
+// Concurrency limit for parallel image loading
+const CONCURRENT_LIMIT = 6
+
+// Timeout for image fetch (15 seconds)
+const IMAGE_FETCH_TIMEOUT_MS = 15000
+
 /**
  * Convert Blob to base64 string
  */
@@ -47,11 +55,14 @@ function blobToBase64(blob: Blob): Promise<string> {
 }
 
 /**
- * Load image from URL and convert to base64
+ * Load image from URL and convert to base64 with timeout
  */
 async function loadImageAsBase64(url: string): Promise<string | null> {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS)
+
   try {
-    const response = await fetch(url)
+    const response = await fetch(url, { signal: controller.signal })
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`)
     }
@@ -59,9 +70,50 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
     const base64 = await blobToBase64(blob)
     return base64
   } catch (error) {
-    console.error(`Failed to load image: ${url}`, error)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Image fetch timeout: ${url}`)
+    } else {
+      console.error(`Failed to load image: ${url}`, error)
+    }
     return null
+  } finally {
+    window.clearTimeout(timeoutId)
   }
+}
+
+/**
+ * Load images in parallel with concurrency limit
+ */
+async function loadImagesParallel(
+  cards: Card[],
+  apiBase: string,
+  onProgress?: (loaded: number, total: number) => void
+): Promise<Map<string, string>> {
+  const imageMap = new Map<string, string>()
+  let loadedCount = 0
+  const total = cards.length
+
+  // Process in batches with concurrency limit
+  for (let i = 0; i < cards.length; i += CONCURRENT_LIMIT) {
+    const batch = cards.slice(i, i + CONCURRENT_LIMIT)
+    const promises = batch.map(async card => {
+      const imageUrl = `${apiBase}${card.image}`
+      const base64 = await loadImageAsBase64(imageUrl)
+      return { card, base64 }
+    })
+
+    const results = await Promise.all(promises)
+
+    for (const { card, base64 } of results) {
+      if (base64) {
+        imageMap.set(card.id, base64)
+      }
+      loadedCount++
+      onProgress?.(loadedCount, total)
+    }
+  }
+
+  return imageMap
 }
 
 /**
@@ -89,7 +141,7 @@ function groupDeckCards(deck: DeckCard[]): DeckCard[] {
 export async function exportDeckToImage(
   options: DeckImageExportOptions
 ): Promise<DeckImageExportResult> {
-  const { deck, leader, apiBase, onProgress } = options
+  const { deck, leader, apiBase, deckName, onProgress } = options
 
   // Container reference for cleanup in finally block
   let container: HTMLDivElement | null = null
@@ -102,20 +154,17 @@ export async function exportDeckToImage(
       return { success: false, error: 'No cards to export' }
     }
 
-    // Pre-load all images as base64
-    const imageMap = new Map<string, string>()
+    // Get unique cards for efficient image loading
     const uniqueCards = [...new Map([...groupedDeck, ...(leader ? [leader] : [])].map(c => [c.id, c])).values()]
 
-    let loadedCount = 0
-    for (const card of uniqueCards) {
-      const imageUrl = `${apiBase}${card.image}`
-      const base64 = await loadImageAsBase64(imageUrl)
-      if (base64) {
-        imageMap.set(card.id, base64)
+    // Pre-load all images as base64 in parallel
+    const imageMap = await loadImagesParallel(
+      uniqueCards,
+      apiBase,
+      (loaded, total) => {
+        onProgress?.(Math.round((loaded / total) * 80), loaded, total)
       }
-      loadedCount++
-      onProgress?.(Math.round((loadedCount / uniqueCards.length) * 80), loadedCount, uniqueCards.length)
-    }
+    )
 
     // Calculate dimensions
     const deckRows = Math.ceil(groupedDeck.length / COLS)
@@ -332,6 +381,9 @@ export async function exportDeckToImage(
     // Wait for DOM to settle
     await new Promise(resolve => setTimeout(resolve, 100))
 
+    // Dynamically import html2canvas (reduces initial bundle size by ~120KB)
+    const html2canvas = (await import('html2canvas')).default
+
     // Convert to canvas
     const canvas = await html2canvas(container, {
       scale: 2,
@@ -342,9 +394,8 @@ export async function exportDeckToImage(
 
     onProgress?.(100, totalCards, totalCards)
 
-    // Generate image data URL
-    const timestamp = new Date().toISOString().slice(0, 10)
-    const filename = `deck_image_${timestamp}.png`
+    // Generate filename: デッキ名_日付_image.png
+    const filename = generateFilename(deckName, 'image', 'png')
     const imageDataUrl = canvas.toDataURL('image/png')
 
     return { success: true, filename, imageDataUrl }

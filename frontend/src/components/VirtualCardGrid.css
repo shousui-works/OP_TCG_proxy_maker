@@ -1,0 +1,43 @@
+.virtual-card-grid-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+.virtual-card-grid {
+  width: 100%;
+}
+
+.virtual-card-row {
+  box-sizing: border-box;
+}
+
+.virtual-card-item {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .virtual-card-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.virtual-card-item.maxed {
+  opacity: 0.5;
+}
+
+.virtual-card-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Reuse existing card-count and card-controls styles from App.css */

@@ -69,7 +69,7 @@ export default function Admin() {
       <div className="admin">
         <header className="admin-header">
           <h1>Admin - カード管理</h1>
-          <Link to="/" className="back-link">← デッキビルダーに戻る</Link>
+          <Link to="/" className="back-link">← OP-TCG base に戻る</Link>
         </header>
         <main className="admin-main">
           <p>読み込み中...</p>
@@ -84,7 +84,7 @@ export default function Admin() {
       <div className="admin">
         <header className="admin-header">
           <h1>Admin - カード管理</h1>
-          <Link to="/" className="back-link">← デッキビルダーに戻る</Link>
+          <Link to="/" className="back-link">← OP-TCG base に戻る</Link>
         </header>
         <main className="admin-main">
           <section className="admin-section">
@@ -109,7 +109,7 @@ export default function Admin() {
       <header className="admin-header">
         <h1>Admin - カード管理</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <Link to="/" className="back-link">← デッキビルダーに戻る</Link>
+          <Link to="/" className="back-link">← OP-TCG base に戻る</Link>
           <LoginButton />
         </div>
       </header>

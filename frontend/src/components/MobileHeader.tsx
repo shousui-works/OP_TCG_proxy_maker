@@ -25,7 +25,7 @@ export default function MobileHeader({
       </button>
 
       <div className="header-title">
-        <h1>OP TCG Proxy</h1>
+        <h1>OP-TCG base</h1>
         {currentDeckName && (
           <span className="current-deck-name">
             {currentDeckName}

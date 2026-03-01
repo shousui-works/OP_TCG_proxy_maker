@@ -1,4 +1,6 @@
-import jsPDF from 'jspdf'
+// jsPDF is loaded dynamically to reduce initial bundle size
+import type { jsPDF } from 'jspdf'
+import { generateFilename } from './filename'
 
 // Types
 interface Card {
@@ -15,6 +17,7 @@ interface PDFExportOptions {
   deck: DeckCard[]
   leader: Card | null
   apiBase: string
+  deckName?: string | null
   onProgress?: (progress: number, loaded: number, total: number) => void
 }
 
@@ -38,6 +41,12 @@ const GRID_WIDTH = CARD_WIDTH * COLS + LINE_WIDTH * (COLS + 1)
 const GRID_HEIGHT = CARD_HEIGHT * ROWS + LINE_WIDTH * (ROWS + 1)
 const MARGIN_X = (A4_WIDTH - GRID_WIDTH) / 2
 const MARGIN_Y = (A4_HEIGHT - GRID_HEIGHT) / 2
+
+// Concurrency limit for parallel image loading
+const CONCURRENT_LIMIT = 6
+
+// Timeout for image fetch (15 seconds)
+const IMAGE_FETCH_TIMEOUT_MS = 15000
 
 /**
  * Convert Blob to base64 string
@@ -106,25 +115,68 @@ function drawCutLines(pdf: jsPDF): void {
 }
 
 /**
- * Load image from URL and convert to base64
+ * Load image from URL and convert to base64 with timeout
  */
 async function loadImage(url: string): Promise<string | null> {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS)
+
   try {
-    console.log('Fetching:', url)
-    const response = await fetch(url)
-    console.log('Response status:', response.status, 'ok:', response.ok)
+    const response = await fetch(url, { signal: controller.signal })
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`)
     }
     const blob = await response.blob()
-    console.log('Blob size:', blob.size, 'type:', blob.type)
     const base64 = await blobToBase64(blob)
-    console.log('Base64 length:', base64.length)
     return base64
   } catch (error) {
-    console.error(`Failed to load image: ${url}`, error)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Image fetch timeout: ${url}`)
+    } else {
+      console.error(`Failed to load image: ${url}`, error)
+    }
     return null
+  } finally {
+    window.clearTimeout(timeoutId)
   }
+}
+
+/**
+ * Load images in parallel with concurrency limit
+ */
+async function loadImagesParallel(
+  cards: Card[],
+  apiBase: string,
+  onProgress?: (loaded: number, total: number) => void
+): Promise<{ imageMap: Map<string, string>; failedImages: string[] }> {
+  const imageMap = new Map<string, string>()
+  const failedImages: string[] = []
+  let loadedCount = 0
+  const total = cards.length
+
+  // Process in batches with concurrency limit
+  for (let i = 0; i < cards.length; i += CONCURRENT_LIMIT) {
+    const batch = cards.slice(i, i + CONCURRENT_LIMIT)
+    const promises = batch.map(async card => {
+      const imageUrl = `${apiBase}${card.image}`
+      const base64 = await loadImage(imageUrl)
+      return { card, base64 }
+    })
+
+    const results = await Promise.all(promises)
+
+    for (const { card, base64 } of results) {
+      if (base64) {
+        imageMap.set(card.id, base64)
+      } else {
+        failedImages.push(card.name || card.id)
+      }
+      loadedCount++
+      onProgress?.(loadedCount, total)
+    }
+  }
+
+  return { imageMap, failedImages }
 }
 
 /**
@@ -133,46 +185,30 @@ async function loadImage(url: string): Promise<string | null> {
 export async function exportDeckToPDF(
   options: PDFExportOptions
 ): Promise<PDFExportResult> {
-  const { deck, leader, apiBase, onProgress } = options
+  const { deck, leader, apiBase, deckName, onProgress } = options
 
   try {
-    console.log('=== PDF Export Debug ===')
-    console.log('Deck:', JSON.stringify(deck, null, 2))
-    console.log('Leader:', JSON.stringify(leader, null, 2))
-
     // Expand deck to full card list
     const allCards = expandDeck(deck, leader)
-    console.log('All cards count:', allCards.length)
     if (allCards.length === 0) {
       return { success: false, error: 'No cards to export' }
     }
 
     // Get unique cards for efficient image loading
     const uniqueCards = [...new Map(allCards.map(c => [c.id, c])).values()]
-    const totalImages = uniqueCards.length
-    console.log('Unique cards:', uniqueCards.map(c => ({ id: c.id, image: c.image })))
 
-    // Load all unique images
-    const imageMap = new Map<string, string>()
-    const failedImages: string[] = []
-
-    for (let i = 0; i < uniqueCards.length; i++) {
-      const card = uniqueCards[i]
-      console.log('Loading card:', card.id, 'image:', card.image)
-      const imageUrl = `${apiBase}${card.image}`
-      console.log('Full URL:', imageUrl)
-      const base64 = await loadImage(imageUrl)
-
-      if (base64) {
-        imageMap.set(card.id, base64)
-      } else {
-        failedImages.push(card.name || card.id)
+    // Load all unique images in parallel
+    const { imageMap, failedImages } = await loadImagesParallel(
+      uniqueCards,
+      apiBase,
+      (loaded, total) => {
+        const progress = Math.round((loaded / total) * 100)
+        onProgress?.(progress, loaded, total)
       }
+    )
 
-      // Report progress
-      const progress = Math.round(((i + 1) / totalImages) * 100)
-      onProgress?.(progress, i + 1, totalImages)
-    }
+    // Dynamically import jsPDF (reduces initial bundle size by ~300KB)
+    const { jsPDF } = await import('jspdf')
 
     // Create PDF
     const pdf = new jsPDF({
@@ -218,9 +254,8 @@ export async function exportDeckToPDF(
       }
     }
 
-    // Generate filename with timestamp
-    const timestamp = new Date().toISOString().slice(0, 10)
-    const filename = `deck_proxy_${timestamp}.pdf`
+    // Generate filename: デッキ名_日付_proxy.pdf
+    const filename = generateFilename(deckName, 'proxy', 'pdf')
 
     // Download PDF
     pdf.save(filename)

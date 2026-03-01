@@ -1,5 +1,5 @@
 /**
- * Shared type definitions for OP TCG Deck Builder
+ * Shared type definitions for OP-TCG base
  */
 
 export interface Series {
