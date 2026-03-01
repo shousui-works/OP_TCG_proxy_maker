@@ -42,52 +42,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await initializeFirebase()
       setFirebaseReady(true)
-
-      // Set up auth state listener after initialization
-      const auth = getAuthInstance()
-      if (auth) {
-        const { onAuthStateChanged } = await import('firebase/auth')
-        onAuthStateChanged(auth, (user) => {
-          setUser(user)
-          setLoading(false)
-        })
-      }
       return true
     } catch (error) {
       console.error('Firebase initialization error:', error)
-      setLoading(false)
       return false
+    } finally {
+      setLoading(false)
     }
   }, [firebaseReady])
 
   // Check for existing auth state on mount (only if configured)
+  // Single listener registration with proper cleanup
   useEffect(() => {
     if (!isFirebaseConfigured) return
 
-    // Try to restore session - initialize Firebase in background
     let mounted = true
-    ;(async () => {
-      await initializeFirebase()
-      if (!mounted) return
+    let unsubscribe: (() => void) | undefined
 
-      const auth = getAuthInstance()
-      if (auth) {
+    ;(async () => {
+      try {
+        await initializeFirebase()
+        if (!mounted) return
+
+        const auth = getAuthInstance()
+        if (!auth) return
+
         const { onAuthStateChanged } = await import('firebase/auth')
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-          if (mounted) {
-            setUser(user)
-            setFirebaseReady(true)
-          }
+        unsubscribe = onAuthStateChanged(auth, (user) => {
+          if (!mounted) return
+          setUser(user)
+          setFirebaseReady(true)
         })
-        return () => {
-          mounted = false
-          unsubscribe()
-        }
+      } catch (error) {
+        console.error('Firebase initialization error:', error)
       }
     })()
 
     return () => {
       mounted = false
+      unsubscribe?.()
     }
   }, [])
 

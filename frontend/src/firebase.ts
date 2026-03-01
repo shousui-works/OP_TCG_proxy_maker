@@ -63,7 +63,13 @@ export async function initializeFirebase(): Promise<{
     })()
   }
 
-  await initPromise
+  try {
+    await initPromise
+  } catch (error) {
+    // Reset initPromise to allow retry on failure
+    initPromise = null
+    throw error
+  }
   return { auth, googleProvider, db }
 }
 
