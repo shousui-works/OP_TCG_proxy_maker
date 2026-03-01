@@ -3,15 +3,16 @@ import {
   useContext,
   useEffect,
   useState,
+  useCallback,
 } from 'react'
 import type { ReactNode } from 'react'
-import {
-  signInWithPopup,
-  signOut,
-  onAuthStateChanged,
-} from 'firebase/auth'
 import type { User } from 'firebase/auth'
-import { auth, googleProvider, isFirebaseConfigured } from '../firebase'
+import {
+  isFirebaseConfigured,
+  initializeFirebase,
+  getAuthInstance,
+  getGoogleProvider,
+} from '../firebase'
 
 interface AuthContextType {
   user: User | null
@@ -29,49 +30,97 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(isFirebaseConfigured)
+  const [loading, setLoading] = useState(false)
+  const [firebaseReady, setFirebaseReady] = useState(false)
 
-  // Firebase認証状態の監視は初回マウント時のみ必要
-  useEffect(() => {
-    if (!isFirebaseConfigured || !auth) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+  // Initialize Firebase lazily when user clicks login
+  const ensureFirebaseReady = useCallback(async () => {
+    if (firebaseReady) return true
+    if (!isFirebaseConfigured) return false
+
+    setLoading(true)
+    try {
+      await initializeFirebase()
+      setFirebaseReady(true)
+      return true
+    } catch (error) {
+      console.error('Firebase initialization error:', error)
+      return false
+    } finally {
       setLoading(false)
-      return
     }
+  }, [firebaseReady])
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user)
-      setLoading(false)
-    })
+  // Check for existing auth state on mount (only if configured)
+  // Single listener registration with proper cleanup
+  useEffect(() => {
+    if (!isFirebaseConfigured) return
 
-    return () => unsubscribe()
+    let mounted = true
+    let unsubscribe: (() => void) | undefined
+
+    ;(async () => {
+      try {
+        await initializeFirebase()
+        if (!mounted) return
+
+        const auth = getAuthInstance()
+        if (!auth) return
+
+        const { onAuthStateChanged } = await import('firebase/auth')
+        unsubscribe = onAuthStateChanged(auth, (user) => {
+          if (!mounted) return
+          setUser(user)
+          setFirebaseReady(true)
+        })
+      } catch (error) {
+        console.error('Firebase initialization error:', error)
+      }
+    })()
+
+    return () => {
+      mounted = false
+      unsubscribe?.()
+    }
   }, [])
 
-  const signInWithGoogle = async () => {
-    if (!auth || !googleProvider) {
+  const signInWithGoogle = useCallback(async () => {
+    const ready = await ensureFirebaseReady()
+    if (!ready) {
       console.error('Firebase is not configured')
       return
     }
+
+    const auth = getAuthInstance()
+    const googleProvider = getGoogleProvider()
+    if (!auth || !googleProvider) {
+      console.error('Firebase auth not initialized')
+      return
+    }
+
     try {
+      const { signInWithPopup } = await import('firebase/auth')
       await signInWithPopup(auth, googleProvider)
     } catch (error) {
       console.error('Google sign-in error:', error)
       throw error
     }
-  }
+  }, [ensureFirebaseReady])
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
+    const auth = getAuthInstance()
     if (!auth) {
-      console.error('Firebase is not configured')
+      console.error('Firebase auth not initialized')
       return
     }
     try {
+      const { signOut } = await import('firebase/auth')
       await signOut(auth)
     } catch (error) {
       console.error('Sign-out error:', error)
       throw error
     }
-  }
+  }, [])
 
   const value = {
     user,

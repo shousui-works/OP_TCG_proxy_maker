@@ -1,8 +1,5 @@
-import { initializeApp } from 'firebase/app'
 import type { FirebaseApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import type { Auth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import type { Auth, GoogleAuthProvider } from 'firebase/auth'
 import type { Firestore } from 'firebase/firestore'
 
 const firebaseConfig = {
@@ -21,16 +18,70 @@ export const isFirebaseConfigured = Boolean(
   firebaseConfig.projectId
 )
 
+// Lazy-loaded Firebase instances
 let app: FirebaseApp | null = null
 let auth: Auth | null = null
 let googleProvider: GoogleAuthProvider | null = null
 let db: Firestore | null = null
+let initPromise: Promise<void> | null = null
 
-if (isFirebaseConfigured) {
-  app = initializeApp(firebaseConfig)
-  auth = getAuth(app)
-  googleProvider = new GoogleAuthProvider()
-  db = getFirestore(app)
+/**
+ * Initialize Firebase lazily (only when needed)
+ * Returns a promise that resolves when Firebase is ready
+ */
+export async function initializeFirebase(): Promise<{
+  auth: Auth | null
+  googleProvider: GoogleAuthProvider | null
+  db: Firestore | null
+}> {
+  if (!isFirebaseConfigured) {
+    return { auth: null, googleProvider: null, db: null }
+  }
+
+  // Return cached instances if already initialized
+  if (auth && googleProvider && db) {
+    return { auth, googleProvider, db }
+  }
+
+  // Prevent multiple parallel initializations
+  if (!initPromise) {
+    initPromise = (async () => {
+      const [
+        { initializeApp },
+        { getAuth, GoogleAuthProvider: GP },
+        { getFirestore }
+      ] = await Promise.all([
+        import('firebase/app'),
+        import('firebase/auth'),
+        import('firebase/firestore')
+      ])
+
+      app = initializeApp(firebaseConfig)
+      auth = getAuth(app)
+      googleProvider = new GP()
+      db = getFirestore(app)
+    })()
+  }
+
+  try {
+    await initPromise
+  } catch (error) {
+    // Reset initPromise to allow retry on failure
+    initPromise = null
+    throw error
+  }
+  return { auth, googleProvider, db }
 }
 
-export { auth, googleProvider, db }
+// Synchronous getters for already-initialized instances
+export function getAuthInstance(): Auth | null {
+  return auth
+}
+
+export function getGoogleProvider(): GoogleAuthProvider | null {
+  return googleProvider
+}
+
+export function getDbInstance(): Firestore | null {
+  return db
+}
