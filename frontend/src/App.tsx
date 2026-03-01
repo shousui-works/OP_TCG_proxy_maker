@@ -96,6 +96,7 @@ function App() {
   // トースト通知
   const [toastMessage, setToastMessage] = useState('')
   const [showToast, setShowToast] = useState(false)
+  const [toastKey, setToastKey] = useState(0)
 
   // バージョン名入力モーダル
   const [showVersionNameModal, setShowVersionNameModal] = useState(false)
@@ -104,6 +105,7 @@ function App() {
 
   const showToastNotification = useCallback((message: string) => {
     setToastMessage(message)
+    setToastKey(prev => prev + 1)
     setShowToast(true)
   }, [])
 
@@ -1408,6 +1410,7 @@ function App() {
       {/* トースト通知 */}
       {showToast && (
         <Toast
+          key={toastKey}
           message={toastMessage}
           isVisible={showToast}
           onClose={() => setShowToast(false)}
