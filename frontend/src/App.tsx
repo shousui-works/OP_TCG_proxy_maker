@@ -316,11 +316,14 @@ function App() {
         const versions = await firestore.fetchVersions(deckName)
         setSidebarVersions(prev => ({ ...prev, [deckName]: versions }))
       } else {
-        await fetch(`${API_BASE}/api/deck/save`, {
+        const saveRes = await fetch(`${API_BASE}/api/deck/save`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ branch: deckName, deck, leader })
         })
+        if (!saveRes.ok) {
+          throw new Error(`Failed to save deck: ${saveRes.status}`)
+        }
       }
       setHasUnsavedChanges(false)
       fetchSavedDecks()
@@ -360,16 +363,22 @@ function App() {
         const versions = await firestore.fetchVersions(deckName)
         setSidebarVersions(prev => ({ ...prev, [deckName]: versions }))
       } else {
-        await fetch(`${API_BASE}/api/branches`, {
+        const createRes = await fetch(`${API_BASE}/api/branches`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: deckName, from_branch: null })
         })
-        await fetch(`${API_BASE}/api/deck/save`, {
+        if (!createRes.ok) {
+          throw new Error(`Failed to create branch: ${createRes.status}`)
+        }
+        const saveRes = await fetch(`${API_BASE}/api/deck/save`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ branch: deckName, deck, leader })
         })
+        if (!saveRes.ok) {
+          throw new Error(`Failed to save deck: ${saveRes.status}`)
+        }
       }
       setCurrentDeckName(deckName)
       setNewDeckName('')
@@ -812,7 +821,15 @@ function App() {
         onDeleteDeck={deleteDeck}
         onLoadVersion={handleLoadVersion}
         fetchVersions={user ? firestore.fetchVersions : undefined}
-        onDeleteVersion={user ? firestore.deleteVersion : undefined}
+        onDeleteVersion={user ? async (branchName: string, versionId: string) => {
+          try {
+            await firestore.deleteVersion(branchName, versionId)
+            showToastNotification('バージョンを削除しました')
+          } catch (error) {
+            showToastNotification('削除に失敗しました')
+            throw error
+          }
+        } : undefined}
       />
 
       {/* フィルターパネル */}
@@ -866,10 +883,14 @@ function App() {
                           {isExpanded ? '▼' : '▶'}
                         </button>
                       )}
-                      <div className="saved-deck-info" onClick={() => loadDeck(savedDeck.name)}>
+                      <button
+                        type="button"
+                        className="saved-deck-info"
+                        onClick={() => loadDeck(savedDeck.name)}
+                      >
                         <span className="saved-deck-name">{savedDeck.name}</span>
                         <span className="saved-deck-count">{savedDeck.deck_count}枚</span>
-                      </div>
+                      </button>
                       <button
                         className="saved-deck-delete"
                         onClick={(e) => {
