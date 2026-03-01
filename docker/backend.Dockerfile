@@ -19,7 +19,8 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 
 # アプリケーションコードをコピー
-COPY server.py crawler.py ./
+COPY backend/ ./backend/
+COPY server.py ./
 
 # dataディレクトリを作成（ローカル開発用）
 RUN mkdir -p data cards
@@ -34,4 +35,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend.app:app", "--host", "0.0.0.0", "--port", "8000"]

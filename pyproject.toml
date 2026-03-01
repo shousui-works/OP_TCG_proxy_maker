@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "op-tcg-proxy-maker"
 version = "0.1.0"
-description = "Add your description here"
+description = "OP TCG Deck Builder and Proxy Maker"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -17,12 +17,16 @@ dependencies = [
     "google-cloud-storage>=2.18.0",
 ]
 
+[project.scripts]
+op-tcg-server = "backend.main:main"
+op-tcg-crawl = "crawler.main:main"
+
 [tool.tox]
 env_list = ["py312", "lint", "ui-lint", "ui-build"]
 
 [tool.tox.env_run_base]
-deps = ["pytest"]
-commands = [["pytest", "tests/"]]
+deps = ["pytest", "httpx"]
+commands = [["pytest", "tests/", "-v"]]
 
 [tool.tox.env.lint]
 deps = ["ruff"]
@@ -40,6 +44,10 @@ allowlist_externals = ["npm"]
 change_dir = "frontend"
 commands = [["npm", "ci"], ["npm", "run", "build"]]
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*", "crawler*"]
+
 [tool.setuptools]
 py-modules = ["main", "crawler", "server"]
 
@@ -52,6 +60,7 @@ select = ["E", "F", "W", "I"]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.0",
     "pytest>=9.0.2",
     "ruff>=0.15.2",
     "tox>=4.46.3",
