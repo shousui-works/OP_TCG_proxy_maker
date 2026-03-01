@@ -1,0 +1,16 @@
+{
+  "name": "OP-TCG base",
+  "short_name": "OP-TCG",
+  "description": "ONE PIECEカードゲーム デッキビルダー",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

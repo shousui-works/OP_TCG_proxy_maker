@@ -13,6 +13,7 @@ import BottomNavigation, { type TabType } from './components/BottomNavigation'
 import FilterPanel from './components/FilterPanel'
 import VirtualCardGrid from './components/VirtualCardGrid'
 import DeckImportExportModal from './components/DeckImportExportModal'
+import CardGridSkeleton from './components/CardGridSkeleton'
 
 interface Series {
   id: string
@@ -569,7 +570,42 @@ function App() {
   }
 
   if (loading) {
-    return <div className="loading">読み込み中...</div>
+    return (
+      <div className={`app ${isMobile ? 'is-mobile' : ''}`}>
+        {isMobile ? (
+          <MobileHeader
+            onMenuToggle={() => {}}
+            currentDeckName={null}
+            hasUnsavedChanges={false}
+          />
+        ) : (
+          <header className="header">
+            <div className="header-left">
+              <h1>OP-TCG base</h1>
+            </div>
+            <div className="deck-controls">
+              <span className="loading-text">読み込み中...</span>
+            </div>
+            <LoginButton />
+          </header>
+        )}
+        <main className="main-content">
+          <div className="card-list-panel">
+            <CardGridSkeleton cardCount={isMobile ? 9 : 20} />
+          </div>
+        </main>
+        {isMobile && (
+          <BottomNavigation
+            activeTab="cards"
+            onTabChange={() => {}}
+            deckCount={0}
+            maxDeckSize={MAX_DECK_SIZE}
+            hasActiveFilters={false}
+            onFilterToggle={() => {}}
+          />
+        )}
+      </div>
+    )
   }
 
   return (

@@ -1,15 +1,6 @@
 import { useCallback } from 'react'
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  deleteDoc,
-  serverTimestamp,
-} from 'firebase/firestore'
 import type { Timestamp } from 'firebase/firestore'
-import { db } from '../firebase'
+import { getDbInstance, initializeFirebase } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 
 export interface DeckCard {
@@ -43,20 +34,27 @@ export interface BranchInfo {
   updated_at: string
 }
 
+// Helper to get Firestore functions lazily
+async function getFirestoreFunctions() {
+  await initializeFirebase()
+  const db = getDbInstance()
+  if (!db) throw new Error('Firestore not initialized')
+
+  const {
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    setDoc,
+    deleteDoc,
+    serverTimestamp,
+  } = await import('firebase/firestore')
+
+  return { db, collection, doc, getDoc, getDocs, setDoc, deleteDoc, serverTimestamp }
+}
+
 export function useFirestoreDeck() {
   const { user, isFirebaseEnabled } = useAuth()
-
-  const getBranchesCollection = useCallback(() => {
-    if (!user) throw new Error('User not authenticated')
-    if (!db) throw new Error('Firestore not initialized')
-    return collection(db, 'users', user.uid, 'branches')
-  }, [user])
-
-  const getSettingsDoc = useCallback(() => {
-    if (!user) throw new Error('User not authenticated')
-    if (!db) throw new Error('Firestore not initialized')
-    return doc(db, 'users', user.uid, 'settings', 'general')
-  }, [user])
 
   const fetchBranches = useCallback(async (): Promise<{
     branches: BranchInfo[]
@@ -67,12 +65,15 @@ export function useFirestoreDeck() {
     }
 
     try {
-      const branchesRef = getBranchesCollection()
+      const { db, collection, doc, getDoc, getDocs, setDoc, serverTimestamp } =
+        await getFirestoreFunctions()
+
+      const branchesRef = collection(db, 'users', user.uid, 'branches')
       const snapshot = await getDocs(branchesRef)
 
       const branches: BranchInfo[] = []
-      snapshot.forEach((doc) => {
-        const data = doc.data() as Branch
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as Branch
         const deckCount = data.deck?.reduce((sum, card) => sum + card.count, 0) || 0
         branches.push({
           name: data.name,
@@ -85,7 +86,15 @@ export function useFirestoreDeck() {
 
       // mainブランチがなければ作成
       if (!branches.find((b) => b.name === 'main')) {
-        await createBranch('main', null)
+        const newBranchRef = doc(branchesRef, 'main')
+        await setDoc(newBranchRef, {
+          name: 'main',
+          deck: [],
+          leader: null,
+          parent: null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        })
         branches.push({
           name: 'main',
           parent: null,
@@ -96,7 +105,7 @@ export function useFirestoreDeck() {
       }
 
       // 現在のブランチを取得
-      const settingsRef = getSettingsDoc()
+      const settingsRef = doc(db, 'users', user.uid, 'settings', 'general')
       const settingsSnap = await getDoc(settingsRef)
       const currentBranch = settingsSnap.exists()
         ? settingsSnap.data().currentBranch || 'main'
@@ -107,14 +116,16 @@ export function useFirestoreDeck() {
       console.error('Failed to fetch branches:', error)
       return { branches: [], currentBranch: 'main' }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, getBranchesCollection, getSettingsDoc])
+  }, [user])
 
   const createBranch = useCallback(
     async (name: string, fromBranch: string | null): Promise<void> => {
       if (!user) throw new Error('User not authenticated')
 
-      const branchesRef = getBranchesCollection()
+      const { db, collection, doc, getDoc, setDoc, serverTimestamp } =
+        await getFirestoreFunctions()
+
+      const branchesRef = collection(db, 'users', user.uid, 'branches')
       const newBranchRef = doc(branchesRef, name)
 
       let parentDeck: DeckCard[] = []
@@ -139,7 +150,7 @@ export function useFirestoreDeck() {
         updatedAt: serverTimestamp(),
       })
     },
-    [user, getBranchesCollection]
+    [user]
   )
 
   const deleteBranch = useCallback(
@@ -147,24 +158,31 @@ export function useFirestoreDeck() {
       if (!user) throw new Error('User not authenticated')
       if (name === 'main') throw new Error('Cannot delete main branch')
 
-      const branchRef = doc(getBranchesCollection(), name)
+      const { db, collection, doc, getDoc, setDoc, deleteDoc } =
+        await getFirestoreFunctions()
+
+      const branchesRef = collection(db, 'users', user.uid, 'branches')
+      const branchRef = doc(branchesRef, name)
       await deleteDoc(branchRef)
 
       // 削除したブランチが現在のブランチならmainに切り替え
-      const settingsRef = getSettingsDoc()
+      const settingsRef = doc(db, 'users', user.uid, 'settings', 'general')
       const settingsSnap = await getDoc(settingsRef)
       if (settingsSnap.exists() && settingsSnap.data().currentBranch === name) {
         await setDoc(settingsRef, { currentBranch: 'main' }, { merge: true })
       }
     },
-    [user, getBranchesCollection, getSettingsDoc]
+    [user]
   )
 
   const checkoutBranch = useCallback(
     async (name: string): Promise<{ deck: DeckCard[]; leader: LeaderCard | null }> => {
       if (!user) throw new Error('User not authenticated')
 
-      const branchRef = doc(getBranchesCollection(), name)
+      const { db, collection, doc, getDoc, setDoc } = await getFirestoreFunctions()
+
+      const branchesRef = collection(db, 'users', user.uid, 'branches')
+      const branchRef = doc(branchesRef, name)
       const branchSnap = await getDoc(branchRef)
 
       if (!branchSnap.exists()) {
@@ -174,7 +192,7 @@ export function useFirestoreDeck() {
       const data = branchSnap.data() as Branch
 
       // 現在のブランチを更新
-      const settingsRef = getSettingsDoc()
+      const settingsRef = doc(db, 'users', user.uid, 'settings', 'general')
       await setDoc(settingsRef, { currentBranch: name }, { merge: true })
 
       return {
@@ -182,7 +200,7 @@ export function useFirestoreDeck() {
         leader: data.leader || null,
       }
     },
-    [user, getBranchesCollection, getSettingsDoc]
+    [user]
   )
 
   const saveDeck = useCallback(
@@ -192,7 +210,9 @@ export function useFirestoreDeck() {
       leader: LeaderCard | null
     ): Promise<void> => {
       if (!user) throw new Error('User not authenticated')
-      if (!db) throw new Error('Firestore not initialized')
+
+      const { db, collection, doc, setDoc, serverTimestamp } =
+        await getFirestoreFunctions()
 
       // undefinedを除去してFirestoreに保存可能な形式に変換
       const cleanObject = <T extends object>(obj: T): T => {
@@ -202,7 +222,8 @@ export function useFirestoreDeck() {
       const cleanDeck = deck.map(card => cleanObject(card))
       const cleanLeader = leader ? cleanObject(leader) : null
 
-      const branchRef = doc(getBranchesCollection(), branchName)
+      const branchesRef = collection(db, 'users', user.uid, 'branches')
+      const branchRef = doc(branchesRef, branchName)
       await setDoc(
         branchRef,
         {
@@ -214,14 +235,17 @@ export function useFirestoreDeck() {
         { merge: true }
       )
     },
-    [user, getBranchesCollection]
+    [user]
   )
 
   const getDeck = useCallback(
     async (branchName: string): Promise<{ deck: DeckCard[]; leader: LeaderCard | null }> => {
       if (!user) throw new Error('User not authenticated')
 
-      const branchRef = doc(getBranchesCollection(), branchName)
+      const { db, collection, doc, getDoc } = await getFirestoreFunctions()
+
+      const branchesRef = collection(db, 'users', user.uid, 'branches')
+      const branchRef = doc(branchesRef, branchName)
       const branchSnap = await getDoc(branchRef)
 
       if (!branchSnap.exists()) {
@@ -234,14 +258,18 @@ export function useFirestoreDeck() {
         leader: data.leader || null,
       }
     },
-    [user, getBranchesCollection]
+    [user]
   )
 
   const mergeBranches = useCallback(
     async (source: string, target: string): Promise<void> => {
       if (!user) throw new Error('User not authenticated')
 
-      const sourceRef = doc(getBranchesCollection(), source)
+      const { db, collection, doc, getDoc, setDoc, serverTimestamp } =
+        await getFirestoreFunctions()
+
+      const branchesRef = collection(db, 'users', user.uid, 'branches')
+      const sourceRef = doc(branchesRef, source)
       const sourceSnap = await getDoc(sourceRef)
 
       if (!sourceSnap.exists()) {
@@ -250,7 +278,7 @@ export function useFirestoreDeck() {
 
       const sourceData = sourceSnap.data() as Branch
 
-      const targetRef = doc(getBranchesCollection(), target)
+      const targetRef = doc(branchesRef, target)
       await setDoc(
         targetRef,
         {
@@ -261,7 +289,7 @@ export function useFirestoreDeck() {
         { merge: true }
       )
     },
-    [user, getBranchesCollection]
+    [user]
   )
 
   return {
