@@ -1065,12 +1065,10 @@
 
   .saved-deck-item {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
     padding: var(--spacing-sm);
     border-radius: var(--radius-md);
     margin-bottom: var(--spacing-xs);
-    cursor: pointer;
     transition: background var(--transition-fast);
   }
 
@@ -1083,12 +1081,126 @@
     border-left: 3px solid var(--color-accent);
   }
 
+  .saved-deck-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
   .saved-deck-info {
     flex: 1;
     display: flex;
     justify-content: space-between;
     align-items: center;
     min-width: 0;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+  }
+
+  .saved-deck-info:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  .deck-sidebar .expand-btn {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    margin-right: var(--spacing-xs);
+  }
+
+  .deck-sidebar .expand-btn:hover {
+    color: var(--color-text-primary);
+  }
+
+  .deck-sidebar .version-list {
+    padding: var(--spacing-xs) 0;
+    margin-left: var(--spacing-md);
+  }
+
+  .deck-sidebar .version-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-xs) 0;
+    font-size: 0.75rem;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast);
+  }
+
+  .deck-sidebar .version-item:hover {
+    background: var(--color-bg-tertiary);
+  }
+
+  .deck-sidebar .version-name {
+    color: var(--color-text-primary);
+    cursor: pointer;
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    text-align: left;
+  }
+
+  .deck-sidebar .version-name:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  .deck-sidebar .version-delete-btn {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 0.875rem;
+    opacity: 0;
+    transition: var(--transition-fast);
+  }
+
+  .deck-sidebar .version-item:hover .version-delete-btn,
+  .deck-sidebar .version-item:focus-within .version-delete-btn,
+  .deck-sidebar .version-delete-btn:focus-visible {
+    opacity: 1;
+  }
+
+  .deck-sidebar .version-delete-btn:hover,
+  .deck-sidebar .version-delete-btn:focus-visible {
+    color: var(--color-danger);
+  }
+
+  .deck-sidebar .version-item.latest .version-name {
+    color: #ff6b6b;
+    font-weight: 600;
+  }
+
+  .deck-sidebar .version-loading,
+  .deck-sidebar .version-empty {
+    padding: var(--spacing-sm);
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-align: center;
   }
 
   .saved-deck-name {

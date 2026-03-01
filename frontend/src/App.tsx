@@ -14,6 +14,7 @@ import FilterPanel from './components/FilterPanel'
 import VirtualCardGrid from './components/VirtualCardGrid'
 import DeckImportExportModal from './components/DeckImportExportModal'
 import CardGridSkeleton from './components/CardGridSkeleton'
+import Toast from './components/Toast'
 
 interface Series {
   id: string
@@ -91,6 +92,23 @@ function App() {
   const [showImportExportModal, setShowImportExportModal] = useState(false)
   const [importExportMode, setImportExportMode] = useState<'import' | 'export'>('export')
 
+
+  // トースト通知
+  const [toastMessage, setToastMessage] = useState('')
+  const [showToast, setShowToast] = useState(false)
+  const [toastKey, setToastKey] = useState(0)
+
+  // バージョン名入力モーダル
+  const [showVersionNameModal, setShowVersionNameModal] = useState(false)
+  const [versionName, setVersionName] = useState('')
+  const [pendingSaveType, setPendingSaveType] = useState<'save' | 'saveAs' | null>(null)
+
+  const showToastNotification = useCallback((message: string) => {
+    setToastMessage(message)
+    setToastKey(prev => prev + 1)
+    setShowToast(true)
+  }, [])
+
   // フィルター・検索
   const [series, setSeries] = useState<Series[]>([])
   const [selectedSeries, setSelectedSeries] = useState<string[]>([])
@@ -103,6 +121,11 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<TabType>('cards')
+
+  // デスクトップサイドバー用バージョン展開状態
+  const [expandedDecks, setExpandedDecks] = useState<Set<string>>(new Set())
+  const [sidebarVersions, setSidebarVersions] = useState<Record<string, import('./hooks/useFirestoreDeck').DeckVersionInfo[]>>({})
+  const [loadingVersions, setLoadingVersions] = useState<Set<string>>(new Set())
 
   const colors = ['赤', '緑', '青', '紫', '黒', '黄']
   const cardTypes = ['LEADER', 'CHARACTER', 'EVENT', 'STAGE']
@@ -134,6 +157,9 @@ function App() {
         })))
       } else {
         const res = await fetch(`${API_BASE}/api/branches`)
+        if (!res.ok) {
+          throw new Error(`HTTP error: ${res.status}`)
+        }
         const data = await res.json()
         setSavedDecks(data.branches.map((b: SavedDeck) => ({
           name: b.name,
@@ -161,6 +187,9 @@ function App() {
         setLeader(data.leader || null)
       } else {
         const res = await fetch(`${API_BASE}/api/deck/${deckName}`)
+        if (!res.ok) {
+          throw new Error(`HTTP error: ${res.status}`)
+        }
         const data = await res.json()
         setDeck(data.deck || [])
         setLeader(data.leader || null)
@@ -215,7 +244,6 @@ function App() {
 
   // 保存済みデッキを初期化
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchSavedDecks()
   }, [fetchSavedDecks])
 
@@ -260,27 +288,51 @@ function App() {
     setSelectedRarities([])
   }
 
-  // デッキを保存（上書き）
+  // デッキを保存（上書き）- バージョン名入力モーダルを表示
   const saveDeck = async () => {
     if (!currentDeckName) {
       setShowSaveAsModal(true)
       return
     }
 
+    // Firebaseの場合はバージョン名入力モーダルを表示
+    if (user && firestore.isAuthenticated) {
+      setPendingSaveType('save')
+      setVersionName('')
+      setShowVersionNameModal(true)
+      return
+    }
+
+    // ローカルの場合は直接保存
+    await executeSave(currentDeckName)
+  }
+
+  // 実際の保存処理
+  const executeSave = async (deckName: string, versionNameInput?: string) => {
     try {
       if (user && firestore.isAuthenticated) {
-        await firestore.saveDeck(currentDeckName, deck, leader)
+        await firestore.saveDeck(deckName, deck, leader, {
+          versionName: versionNameInput || undefined
+        })
+        // バージョン一覧を更新
+        const versions = await firestore.fetchVersions(deckName)
+        setSidebarVersions(prev => ({ ...prev, [deckName]: versions }))
       } else {
-        await fetch(`${API_BASE}/api/deck/save`, {
+        const saveRes = await fetch(`${API_BASE}/api/deck/save`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ branch: currentDeckName, deck, leader })
+          body: JSON.stringify({ branch: deckName, deck, leader })
         })
+        if (!saveRes.ok) {
+          throw new Error(`Failed to save deck: ${saveRes.status}`)
+        }
       }
       setHasUnsavedChanges(false)
       fetchSavedDecks()
+      showToastNotification('保存しました')
     } catch (err) {
       console.error('Failed to save deck:', err)
+      showToastNotification('保存に失敗しました')
     }
   }
 
@@ -288,29 +340,57 @@ function App() {
   const saveAsNewDeck = async () => {
     if (!newDeckName.trim()) return
 
+    // Firebaseの場合はバージョン名入力モーダルを表示
+    if (user && firestore.isAuthenticated) {
+      setShowSaveAsModal(false)
+      setPendingSaveType('saveAs')
+      setVersionName('')
+      setShowVersionNameModal(true)
+      return
+    }
+
+    // ローカルの場合は直接保存
+    await executeNewDeckSave(newDeckName)
+  }
+
+  // 新規デッキの実際の保存処理
+  const executeNewDeckSave = async (deckName: string, versionNameInput?: string) => {
     try {
       if (user && firestore.isAuthenticated) {
-        await firestore.createBranch(newDeckName, null)
-        await firestore.saveDeck(newDeckName, deck, leader)
+        await firestore.createBranch(deckName, null)
+        await firestore.saveDeck(deckName, deck, leader, {
+          versionName: versionNameInput || undefined
+        })
+        // バージョン一覧を更新
+        const versions = await firestore.fetchVersions(deckName)
+        setSidebarVersions(prev => ({ ...prev, [deckName]: versions }))
       } else {
-        await fetch(`${API_BASE}/api/branches`, {
+        const createRes = await fetch(`${API_BASE}/api/branches`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: newDeckName, from_branch: null })
+          body: JSON.stringify({ name: deckName, from_branch: null })
         })
-        await fetch(`${API_BASE}/api/deck/save`, {
+        if (!createRes.ok) {
+          throw new Error(`Failed to create branch: ${createRes.status}`)
+        }
+        const saveRes = await fetch(`${API_BASE}/api/deck/save`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ branch: newDeckName, deck, leader })
+          body: JSON.stringify({ branch: deckName, deck, leader })
         })
+        if (!saveRes.ok) {
+          throw new Error(`Failed to save deck: ${saveRes.status}`)
+        }
       }
-      setCurrentDeckName(newDeckName)
+      setCurrentDeckName(deckName)
       setNewDeckName('')
       setShowSaveAsModal(false)
       setHasUnsavedChanges(false)
       fetchSavedDecks()
+      showToastNotification('保存しました')
     } catch (err) {
       console.error('Failed to save deck:', err)
+      showToastNotification('保存に失敗しました')
     }
   }
 
@@ -565,8 +645,95 @@ function App() {
     return true // Success - close modal
   }
 
+  // バージョン読込ハンドラー
+  const handleLoadVersion = async (branchName: string, versionId: string) => {
+    if (hasUnsavedChanges) {
+      if (!confirm('未保存の変更があります。破棄してバージョンを読み込みますか？')) {
+        return
+      }
+    }
+
+    try {
+      const { deck: restoredDeck, leader: restoredLeader } = await firestore.restoreVersion(
+        branchName,
+        versionId
+      )
+      // Card型に変換
+      const convertedDeck: DeckCard[] = restoredDeck.map((card) => ({
+        ...card,
+        count: card.count,
+      }))
+      const convertedLeader: Card | null = restoredLeader
+        ? {
+            id: restoredLeader.id,
+            name: restoredLeader.name,
+            image: restoredLeader.image,
+            color: restoredLeader.color,
+          }
+        : null
+      setDeck(convertedDeck)
+      setLeader(convertedLeader)
+      setCurrentDeckName(branchName)
+      setHasUnsavedChanges(true)
+    } catch (error) {
+      console.error('Failed to load version:', error)
+    }
+  }
+
   const getCardCount = (cardId: string) => {
     return deckMap.get(cardId) || 0
+  }
+
+  // サイドバー用バージョン展開トグル
+  const toggleSidebarExpanded = async (deckName: string) => {
+    const newExpanded = new Set(expandedDecks)
+
+    if (newExpanded.has(deckName)) {
+      newExpanded.delete(deckName)
+      setExpandedDecks(newExpanded)
+    } else {
+      newExpanded.add(deckName)
+      setExpandedDecks(newExpanded)
+
+      // Fetch versions if not already loaded
+      if (!sidebarVersions[deckName] && user) {
+        setLoadingVersions(prev => new Set(prev).add(deckName))
+        try {
+          const versions = await firestore.fetchVersions(deckName)
+          setSidebarVersions(prev => ({ ...prev, [deckName]: versions }))
+        } catch (error) {
+          console.error('Failed to fetch versions:', error)
+        } finally {
+          setLoadingVersions(prev => {
+            const next = new Set(prev)
+            next.delete(deckName)
+            return next
+          })
+        }
+      }
+    }
+  }
+
+  // バージョン名を確定して保存
+  const confirmVersionSave = async () => {
+    setShowVersionNameModal(false)
+    const trimmedVersionName = versionName.trim()
+
+    if (pendingSaveType === 'save' && currentDeckName) {
+      await executeSave(currentDeckName, trimmedVersionName || undefined)
+    } else if (pendingSaveType === 'saveAs' && newDeckName.trim()) {
+      await executeNewDeckSave(newDeckName.trim(), trimmedVersionName || undefined)
+    }
+
+    setPendingSaveType(null)
+    setVersionName('')
+  }
+
+  // バージョン名入力をキャンセル
+  const cancelVersionSave = () => {
+    setShowVersionNameModal(false)
+    setPendingSaveType(null)
+    setVersionName('')
   }
 
   if (loading) {
@@ -654,6 +821,17 @@ function App() {
         onSave={saveDeck}
         onSaveAs={() => setShowSaveAsModal(true)}
         onDeleteDeck={deleteDeck}
+        onLoadVersion={handleLoadVersion}
+        fetchVersions={user ? firestore.fetchVersions : undefined}
+        onDeleteVersion={user ? async (branchName: string, versionId: string) => {
+          try {
+            await firestore.deleteVersion(branchName, versionId)
+            showToastNotification('バージョンを削除しました')
+          } catch (error) {
+            showToastNotification('削除に失敗しました')
+            throw error
+          }
+        } : undefined}
       />
 
       {/* フィルターパネル */}
@@ -688,26 +866,90 @@ function App() {
             <p className="no-decks">保存済みデッキはありません</p>
           ) : (
             <ul className="saved-deck-list">
-              {savedDecks.map(savedDeck => (
-                <li
-                  key={savedDeck.name}
-                  className={`saved-deck-item ${savedDeck.name === currentDeckName ? 'active' : ''}`}
-                >
-                  <div className="saved-deck-info" onClick={() => loadDeck(savedDeck.name)}>
-                    <span className="saved-deck-name">{savedDeck.name}</span>
-                    <span className="saved-deck-count">{savedDeck.deck_count}枚</span>
-                  </div>
-                  <button
-                    className="saved-deck-delete"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      deleteDeck(savedDeck.name)
-                    }}
+              {savedDecks.map(savedDeck => {
+                const isExpanded = expandedDecks.has(savedDeck.name)
+                const versions = sidebarVersions[savedDeck.name] || []
+                const isLoading = loadingVersions.has(savedDeck.name)
+
+                return (
+                  <li
+                    key={savedDeck.name}
+                    className={`saved-deck-item ${savedDeck.name === currentDeckName ? 'active' : ''}`}
                   >
-                    ×
-                  </button>
-                </li>
-              ))}
+                    <div className="saved-deck-row">
+                      {user && (
+                        <button
+                          className="expand-btn"
+                          onClick={() => toggleSidebarExpanded(savedDeck.name)}
+                        >
+                          {isExpanded ? '▼' : '▶'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="saved-deck-info"
+                        onClick={() => loadDeck(savedDeck.name)}
+                      >
+                        <span className="saved-deck-name">{savedDeck.name}</span>
+                        <span className="saved-deck-count">{savedDeck.deck_count}枚</span>
+                      </button>
+                      <button
+                        className="saved-deck-delete"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          deleteDeck(savedDeck.name)
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    {isExpanded && user && (
+                      <div className="version-list">
+                        {isLoading ? (
+                          <div className="version-loading">読込中...</div>
+                        ) : versions.length === 0 ? (
+                          <div className="version-empty">バージョンなし</div>
+                        ) : (
+                          versions.slice(0, 10).map((version, index) => (
+                            <div
+                              key={version.id}
+                              className={`version-item ${index === 0 ? 'latest' : ''}`}
+                            >
+                              <button
+                                className="version-name"
+                                onClick={() => handleLoadVersion(savedDeck.name, version.id)}
+                              >
+                                {version.name || `v${version.versionNumber}`}
+                              </button>
+                              <button
+                                className="version-delete-btn"
+                                onClick={async (e) => {
+                                  e.stopPropagation()
+                                  if (!confirm('このバージョンを削除しますか？')) return
+                                  try {
+                                    await firestore.deleteVersion(savedDeck.name, version.id)
+                                    // バージョン一覧を更新
+                                    const updatedVersions = await firestore.fetchVersions(savedDeck.name)
+                                    setSidebarVersions(prev => ({ ...prev, [savedDeck.name]: updatedVersions }))
+                                    showToastNotification('バージョンを削除しました')
+                                  } catch (error) {
+                                    console.error('Failed to delete version:', error)
+                                    showToastNotification('削除に失敗しました')
+                                  }
+                                }}
+                                aria-label="バージョンを削除"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>
@@ -954,6 +1196,36 @@ function App() {
         </div>
       )}
 
+      {/* バージョン名入力モーダル */}
+      {showVersionNameModal && (
+        <div className="modal-overlay" onClick={cancelVersionSave}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3>バージョン名（任意）</h3>
+            <p className="modal-desc">
+              このバージョンに名前をつけられます（空欄可）
+            </p>
+            <input
+              type="text"
+              value={versionName}
+              onChange={e => setVersionName(e.target.value)}
+              placeholder="例: 大会用、v1.0"
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  confirmVersionSave()
+                }
+              }}
+              autoFocus
+            />
+            <div className="modal-actions">
+              <button onClick={cancelVersionSave}>キャンセル</button>
+              <button onClick={confirmVersionSave} className="primary">
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* プロキシ作成モーダル */}
       {showPdfModal && (
         <div className="modal-overlay" onClick={() => setShowPdfModal(false)}>
@@ -1134,6 +1406,16 @@ function App() {
         availableCards={cards}
         onImport={handleImportDeck}
       />
+
+      {/* トースト通知 */}
+      {showToast && (
+        <Toast
+          key={toastKey}
+          message={toastMessage}
+          isVisible={showToast}
+          onClose={() => setShowToast(false)}
+        />
+      )}
     </div>
   )
 }
