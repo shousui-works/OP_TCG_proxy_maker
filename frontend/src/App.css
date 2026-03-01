@@ -294,7 +294,6 @@
 
 .deck-panel.active {
   display: flex;
-  flex: 1;
 }
 
 .deck-header {
@@ -891,7 +890,7 @@
 
   .deck-panel {
     width: var(--deck-panel-width);
-    flex-shrink: 0;
+    flex: 0 0 var(--deck-panel-width);
     border-left: 2px solid var(--color-bg-tertiary);
   }
 

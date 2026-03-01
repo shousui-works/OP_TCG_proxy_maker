@@ -11,6 +11,7 @@ import MobileHeader from './components/MobileHeader'
 import HamburgerMenu from './components/HamburgerMenu'
 import BottomNavigation, { type TabType } from './components/BottomNavigation'
 import FilterPanel from './components/FilterPanel'
+import VirtualCardGrid from './components/VirtualCardGrid'
 
 interface Series {
   id: string
@@ -683,54 +684,23 @@ function App() {
             />
           )}
 
-          <div className="card-grid-container">
-            <div className="card-grid">
-              {filteredCards.map(card => {
-                const count = getCardCount(card.id)
-                return (
-                  <div
-                    key={card.id}
-                    className={`card-item ${count >= MAX_COPIES ? 'maxed' : ''}`}
-                    onClick={() => !isMobile && addToDeck(card)}
-                    onMouseEnter={(e) => {
-                      if (!isMobile && enableHoverZoom) {
-                        const rect = e.currentTarget.getBoundingClientRect()
-                        setHoverCard({ card, x: rect.right + 10, y: rect.top })
-                      }
-                    }}
-                    onMouseLeave={() => enableHoverZoom && setHoverCard(null)}
-                  >
-                    <img
-                      src={`${API_BASE}${card.image}`}
-                      alt={card.name}
-                      loading="lazy"
-                    />
-                    {count > 0 && (
-                      <div className="card-count">{count}</div>
-                    )}
-                    {isMobile && (
-                      <div className="card-controls">
-                        <button
-                          className="card-control-btn minus"
-                          onClick={(e) => { e.stopPropagation(); removeFromDeck(card.id) }}
-                          disabled={count === 0}
-                        >
-                          −
-                        </button>
-                        <button
-                          className="card-control-btn plus"
-                          onClick={(e) => { e.stopPropagation(); addToDeck(card) }}
-                          disabled={count >= MAX_COPIES}
-                        >
-                          +
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          <VirtualCardGrid
+            cards={filteredCards}
+            apiBase={API_BASE}
+            isMobile={isMobile}
+            enableHoverZoom={enableHoverZoom}
+            maxCopies={MAX_COPIES}
+            getCardCount={getCardCount}
+            onAddToDeck={addToDeck}
+            onRemoveFromDeck={removeFromDeck}
+            onHoverCard={(card, x, y) => {
+              if (card) {
+                setHoverCard({ card, x, y })
+              } else {
+                setHoverCard(null)
+              }
+            }}
+          />
         </section>
 
         {/* デッキパネル */}

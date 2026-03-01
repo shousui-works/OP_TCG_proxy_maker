@@ -27,8 +27,8 @@
   /* Z-index layers */
   --z-header: 100;
   --z-bottom-nav: 150;
-  --z-sidebar: 200;
-  --z-backdrop: 250;
+  --z-backdrop: 200;
+  --z-sidebar: 250;
   --z-modal: 300;
 
   /* Transitions */
@@ -40,7 +40,7 @@
   --header-height: 56px;
   --bottom-nav-height: 56px;
   --sidebar-width: 200px;
-  --deck-panel-width: 320px;
+  --deck-panel-width: 300px;
 
   /* Border radius */
   --radius-sm: 4px;
