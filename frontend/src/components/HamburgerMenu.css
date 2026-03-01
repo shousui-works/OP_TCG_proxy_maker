@@ -304,6 +304,17 @@
   color: var(--color-text-primary);
   cursor: pointer;
   flex: 1;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+}
+
+.version-name:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .version-delete-btn {

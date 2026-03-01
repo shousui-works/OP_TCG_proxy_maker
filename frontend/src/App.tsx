@@ -155,6 +155,9 @@ function App() {
         })))
       } else {
         const res = await fetch(`${API_BASE}/api/branches`)
+        if (!res.ok) {
+          throw new Error(`HTTP error: ${res.status}`)
+        }
         const data = await res.json()
         setSavedDecks(data.branches.map((b: SavedDeck) => ({
           name: b.name,
@@ -182,6 +185,9 @@ function App() {
         setLeader(data.leader || null)
       } else {
         const res = await fetch(`${API_BASE}/api/deck/${deckName}`)
+        if (!res.ok) {
+          throw new Error(`HTTP error: ${res.status}`)
+        }
         const data = await res.json()
         setDeck(data.deck || [])
         setLeader(data.leader || null)
@@ -887,12 +893,12 @@ function App() {
                               key={version.id}
                               className={`version-item ${index === 0 ? 'latest' : ''}`}
                             >
-                              <span
+                              <button
                                 className="version-name"
                                 onClick={() => handleLoadVersion(savedDeck.name, version.id)}
                               >
                                 {version.name || `v${version.versionNumber}`}
-                              </span>
+                              </button>
                               <button
                                 className="version-delete-btn"
                                 onClick={async (e) => {

@@ -23,12 +23,12 @@ export default function Toast({ message, isVisible, onClose, duration = 2000 }: 
     }, duration)
 
     return () => clearTimeout(timer)
-  }, [isVisible, duration])
+  }, [isVisible, duration, message])
 
   if (!isVisible) return null
 
   return (
-    <div className="toast">
+    <div className="toast" role="status" aria-live="polite">
       <span className="toast-message">{message}</span>
     </div>
   )

@@ -196,12 +196,12 @@ export default function HamburgerMenu({
                               key={version.id}
                               className={`version-item ${index === 0 ? 'latest' : ''}`}
                             >
-                              <span
+                              <button
                                 className="version-name"
                                 onClick={() => handleLoadVersion(deck.name, version.id)}
                               >
                                 {version.name || `v${version.versionNumber}`}
-                              </span>
+                              </button>
                               {onDeleteVersion && (
                                 <button
                                   className="version-delete-btn"
