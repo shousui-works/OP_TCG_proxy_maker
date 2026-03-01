@@ -146,7 +146,8 @@ if [ "$DEPLOY_BACKEND" = true ]; then
     --region "$REGION" \
     --platform managed \
     --allow-unauthenticated \
-    --set-env-vars "CARD_IMAGES_BUCKET=op-tcg-project-card-images,DATA_FILES_BUCKET=op-tcg-project-data-files,GCS_PUBLIC_URL=https://storage.googleapis.com/op-tcg-project-card-images,ALLOWED_ORIGINS=https://op-tcg-frontend-265857555428.asia-northeast1.run.app" \
+    --set-env-vars "CARD_IMAGES_BUCKET=op-tcg-project-card-images,DATA_FILES_BUCKET=op-tcg-project-data-files,GCS_PUBLIC_URL=https://storage.googleapis.com/op-tcg-project-card-images" \
+    --set-env-vars "^;^ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,https://op-tcg-frontend-265857555428.asia-northeast1.run.app,https://op-tcg-frontend-n3xjn7ioga-an.a.run.app,https://op-tcg-base.ludora-base.com" \
     --quiet
 
   echo -e "${GREEN}>>> バックエンドのデプロイ完了！${NC}"
