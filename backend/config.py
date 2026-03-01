@@ -38,6 +38,7 @@ class Settings:
         "http://127.0.0.1:5173",
         "https://op-tcg-frontend-265857555428.asia-northeast1.run.app",
         "https://op-tcg-frontend-n3xjn7ioga-an.a.run.app",
+        "https://op-tcg-base.ludora-base.com",
     ]
     ALLOWED_ORIGINS: list[str] = os.environ.get(
         "ALLOWED_ORIGINS", ",".join(DEFAULT_ORIGINS)
