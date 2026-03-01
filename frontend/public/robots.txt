@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://op-tcg-base.ludora-base.com/sitemap.xml
