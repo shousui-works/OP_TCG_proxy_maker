@@ -583,7 +583,7 @@ function App() {
       ) : (
         <header className="header">
           <div className="header-left">
-            <h1>OP TCG デッキビルダー</h1>
+            <h1>OP-TCG base</h1>
             <Link to="/admin" className="admin-link">Admin</Link>
           </div>
           <div className="deck-controls">
