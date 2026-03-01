@@ -110,7 +110,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = useCallback(async () => {
     const auth = getAuthInstance()
     if (!auth) {
-      console.error('Firebase is not configured')
+      console.error('Firebase auth not initialized')
       return
     }
     try {
