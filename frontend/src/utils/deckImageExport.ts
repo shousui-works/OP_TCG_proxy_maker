@@ -39,6 +39,9 @@ const CARD_ID_HEIGHT = 25  // px - カードID表示用の高さ
 // Concurrency limit for parallel image loading
 const CONCURRENT_LIMIT = 6
 
+// Timeout for image fetch (15 seconds)
+const IMAGE_FETCH_TIMEOUT_MS = 15000
+
 /**
  * Convert Blob to base64 string
  */
@@ -52,11 +55,14 @@ function blobToBase64(blob: Blob): Promise<string> {
 }
 
 /**
- * Load image from URL and convert to base64
+ * Load image from URL and convert to base64 with timeout
  */
 async function loadImageAsBase64(url: string): Promise<string | null> {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), IMAGE_FETCH_TIMEOUT_MS)
+
   try {
-    const response = await fetch(url)
+    const response = await fetch(url, { signal: controller.signal })
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`)
     }
@@ -64,8 +70,14 @@ async function loadImageAsBase64(url: string): Promise<string | null> {
     const base64 = await blobToBase64(blob)
     return base64
   } catch (error) {
-    console.error(`Failed to load image: ${url}`, error)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Image fetch timeout: ${url}`)
+    } else {
+      console.error(`Failed to load image: ${url}`, error)
+    }
     return null
+  } finally {
+    window.clearTimeout(timeoutId)
   }
 }
 

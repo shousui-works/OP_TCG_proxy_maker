@@ -25,6 +25,19 @@ export interface ImportValidationResult {
 }
 
 /**
+ * Type guard to check if value is a valid DeckExportData object
+ */
+function isDeckExportData(value: unknown): value is DeckExportData {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    'version' in value &&
+    'cards' in value
+  )
+}
+
+/**
  * Parse and validate deck JSON
  */
 export function parseDeckJson(jsonString: string): ImportValidationResult {
@@ -32,9 +45,9 @@ export function parseDeckJson(jsonString: string): ImportValidationResult {
   const warnings: string[] = []
 
   // Parse JSON
-  let data: DeckExportData
+  let raw: unknown
   try {
-    data = JSON.parse(jsonString)
+    raw = JSON.parse(jsonString)
   } catch {
     return {
       valid: false,
@@ -43,11 +56,22 @@ export function parseDeckJson(jsonString: string): ImportValidationResult {
     }
   }
 
-  // Version check
-  if (!data.version || !SUPPORTED_VERSIONS.includes(data.version)) {
+  // Type guard check
+  if (!isDeckExportData(raw)) {
     return {
       valid: false,
-      errors: [`サポートされていないバージョンです: ${data.version || '不明'}`],
+      errors: ['デッキデータの形式が正しくありません。オブジェクト形式で version と cards が必要です。'],
+      warnings: [],
+    }
+  }
+
+  const data = raw
+
+  // Version check
+  if (!SUPPORTED_VERSIONS.includes(data.version)) {
+    return {
+      valid: false,
+      errors: [`サポートされていないバージョンです: ${data.version}`],
       warnings: [],
     }
   }
@@ -128,29 +152,52 @@ export function resolveDeckCards(
     cardMap.set(card.id, card)
   }
 
-  // Resolve deck cards
-  const resolvedCards: DeckCard[] = []
-  const missingCards: MissingCard[] = []
+  // Resolve deck cards with ID aggregation to prevent duplicates
+  const resolvedById = new Map<string, DeckCard>()
+  const missingById = new Map<string, MissingCard>()
 
   for (const importCard of data.cards) {
     const systemCard = cardMap.get(importCard.id)
     if (systemCard) {
-      resolvedCards.push({
-        ...systemCard,
-        count: importCard.count,
-      })
+      const existing = resolvedById.get(importCard.id)
+      if (existing) {
+        // Aggregate count for duplicate IDs
+        existing.count += importCard.count
+      } else {
+        resolvedById.set(importCard.id, {
+          ...systemCard,
+          count: importCard.count,
+        })
+      }
     } else {
-      missingCards.push({
-        id: importCard.id,
-        name: importCard.name || importCard.id,
-        count: importCard.count,
-      })
+      const existing = missingById.get(importCard.id)
+      if (existing) {
+        existing.count += importCard.count
+      } else {
+        missingById.set(importCard.id, {
+          id: importCard.id,
+          name: importCard.name || importCard.id,
+          count: importCard.count,
+        })
+      }
     }
   }
 
+  // Validate aggregated counts against MAX_COPIES
+  const resolvedCards: DeckCard[] = []
+  for (const [, card] of resolvedById) {
+    if (card.count > MAX_COPIES) {
+      warnings.push(`${card.name}: ${card.count}枚 → ${MAX_COPIES}枚に制限されました`)
+      card.count = MAX_COPIES
+    }
+    resolvedCards.push(card)
+  }
+
+  const missingCards = Array.from(missingById.values())
+
   if (missingCards.length > 0) {
     warnings.push(
-      `${missingCards.length}枚のカードがシステムに存在しないためスキップされます:`
+      `${missingCards.length}種類のカードがシステムに存在しないためスキップされます:`
     )
     for (const card of missingCards) {
       warnings.push(`  - ${card.id} (${card.name}) x${card.count}`)
