@@ -65,6 +65,11 @@
   box-shadow: 0 12px 40px rgba(79, 195, 247, 0.2);
 }
 
+.menu-card:focus-visible {
+  outline: 2px solid var(--accent-color, #4fc3f7);
+  outline-offset: 2px;
+}
+
 .menu-card.deck-builder:hover {
   border-color: #4caf50;
   box-shadow: 0 12px 40px rgba(76, 175, 80, 0.2);

@@ -161,8 +161,25 @@ export function TournamentsPage() {
     }
   }
 
+  // Show message if Firebase is disabled
+  if (!isFirebaseEnabled) {
+    return (
+      <div className="tournaments-page">
+        <header className="tournaments-header">
+          <button className="back-button" onClick={() => navigate('/')}>
+            ← 戻る
+          </button>
+          <h1>大会管理</h1>
+        </header>
+        <div className="login-prompt">
+          <p>大会管理機能は現在利用できません。</p>
+        </div>
+      </div>
+    )
+  }
+
   // Show login prompt if not authenticated
-  if (!user || !isFirebaseEnabled) {
+  if (!user) {
     return (
       <div className="tournaments-page">
         <header className="tournaments-header">

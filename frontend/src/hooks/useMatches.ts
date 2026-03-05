@@ -20,6 +20,7 @@ async function getFirestoreFunctions() {
     query,
     orderBy,
     addDoc,
+    limit,
   } = await import('firebase/firestore')
 
   return {
@@ -34,6 +35,7 @@ async function getFirestoreFunctions() {
     query,
     orderBy,
     addDoc,
+    limit,
   }
 }
 
@@ -90,7 +92,7 @@ export function useMatches() {
     ): Promise<string> => {
       if (!user) throw new Error('User not authenticated')
 
-      const { db, collection, getDocs, addDoc, serverTimestamp, query, orderBy } =
+      const { db, collection, getDocs, addDoc, serverTimestamp, query, orderBy, limit } =
         await getFirestoreFunctions()
 
       const matchesRef = collection(
@@ -102,8 +104,8 @@ export function useMatches() {
         'matches'
       )
 
-      // Get the current highest order number
-      const q = query(matchesRef, orderBy('order', 'desc'))
+      // Get the current highest order number (only fetch 1 document)
+      const q = query(matchesRef, orderBy('order', 'desc'), limit(1))
       const snapshot = await getDocs(q)
       const highestOrder = snapshot.empty ? 0 : snapshot.docs[0].data().order || 0
 

@@ -1,4 +1,4 @@
-.modal-overlay {
+.tournament-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -21,7 +21,7 @@
   overflow-y: auto;
 }
 
-.modal-header {
+.tournament-modal .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -29,12 +29,12 @@
   border-bottom: 1px solid var(--border-color, #2a2a4a);
 }
 
-.modal-header h2 {
+.tournament-modal .modal-header h2 {
   margin: 0;
   font-size: 1.125rem;
 }
 
-.close-button {
+.tournament-modal .close-button {
   background: none;
   border: none;
   color: var(--text-secondary, #aaa);
@@ -44,7 +44,7 @@
   padding: 0;
 }
 
-.close-button:hover {
+.tournament-modal .close-button:hover {
   color: var(--text-primary, #e0e0e0);
 }
 
@@ -52,19 +52,19 @@
   padding: 1rem;
 }
 
-.form-group {
+.tournament-modal .form-group {
   margin-bottom: 1rem;
 }
 
-.form-group label {
+.tournament-modal .form-group label {
   display: block;
   margin-bottom: 0.375rem;
   font-size: 0.875rem;
   color: var(--text-secondary, #aaa);
 }
 
-.form-group input,
-.form-group select {
+.tournament-modal .form-group input,
+.tournament-modal .form-group select {
   width: 100%;
   padding: 0.625rem;
   background: var(--bg-tertiary, #1f2937);
@@ -74,27 +74,27 @@
   font-size: 1rem;
 }
 
-.form-group input:focus,
-.form-group select:focus {
+.tournament-modal .form-group input:focus,
+.tournament-modal .form-group select:focus {
   outline: none;
   border-color: var(--accent-color, #4fc3f7);
 }
 
-.deck-select {
+.tournament-modal .deck-select {
   margin-bottom: 0.5rem;
 }
 
-.loading-decks {
+.tournament-modal .loading-decks {
   padding: 0.5rem;
   color: var(--text-secondary, #aaa);
   font-size: 0.875rem;
 }
 
-.leader-selection {
+.tournament-modal .leader-selection {
   margin-top: 0.5rem;
 }
 
-.selected-leader {
+.tournament-modal .selected-leader {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -103,17 +103,17 @@
   border-radius: 4px;
 }
 
-.selected-leader img {
+.tournament-modal .selected-leader img {
   width: 40px;
   height: auto;
   border-radius: 2px;
 }
 
-.selected-leader span {
+.tournament-modal .selected-leader span {
   flex: 1;
 }
 
-.clear-leader {
+.tournament-modal .clear-leader {
   background: none;
   border: none;
   color: var(--text-secondary, #aaa);
@@ -122,11 +122,11 @@
   padding: 0.25rem;
 }
 
-.clear-leader:hover {
+.tournament-modal .clear-leader:hover {
   color: #ef4444;
 }
 
-.select-leader-btn {
+.tournament-modal .select-leader-btn {
   background: var(--bg-tertiary, #1f2937);
   border: 1px dashed var(--border-color, #2a2a4a);
   border-radius: 4px;
@@ -137,19 +137,19 @@
   font-size: 0.875rem;
 }
 
-.select-leader-btn:hover {
+.tournament-modal .select-leader-btn:hover {
   border-color: var(--accent-color, #4fc3f7);
   color: var(--accent-color, #4fc3f7);
 }
 
-.modal-actions {
+.tournament-modal .modal-actions {
   display: flex;
   gap: 0.75rem;
   margin-top: 1.5rem;
 }
 
-.cancel-button,
-.save-button {
+.tournament-modal .cancel-button,
+.tournament-modal .save-button {
   flex: 1;
   padding: 0.75rem;
   border-radius: 4px;
@@ -157,28 +157,28 @@
   cursor: pointer;
 }
 
-.cancel-button {
+.tournament-modal .cancel-button {
   background: var(--bg-tertiary, #1f2937);
   border: 1px solid var(--border-color, #2a2a4a);
   color: var(--text-primary, #e0e0e0);
 }
 
-.cancel-button:hover {
+.tournament-modal .cancel-button:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 
-.save-button {
+.tournament-modal .save-button {
   background: var(--accent-color, #4fc3f7);
   border: none;
   color: #000;
   font-weight: 500;
 }
 
-.save-button:hover:not(:disabled) {
+.tournament-modal .save-button:hover:not(:disabled) {
   opacity: 0.9;
 }
 
-.save-button:disabled {
+.tournament-modal .save-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

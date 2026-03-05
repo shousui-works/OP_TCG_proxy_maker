@@ -46,6 +46,12 @@ export function TournamentModal({ tournament, onSave, onClose }: TournamentModal
     return `${year}-${month}-${day}`
   }
 
+  // Parse date string as local timezone (not UTC)
+  function parseDateFromInput(dateString: string): Date {
+    const [year, month, day] = dateString.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  }
+
   useEffect(() => {
     async function loadDecks() {
       setLoadingDecks(true)
@@ -76,7 +82,7 @@ export function TournamentModal({ tournament, onSave, onClose }: TournamentModal
 
     onSave({
       name: name.trim(),
-      date: new Date(date),
+      date: parseDateFromInput(date),
       type,
       customTypeName: type === 'other' ? customTypeName : undefined,
       myLeader: myLeader || undefined,
@@ -85,13 +91,14 @@ export function TournamentModal({ tournament, onSave, onClose }: TournamentModal
 
   const handleSelectDeck = async (deckName: string) => {
     const deck = savedDecks.find((d) => d.name === deckName)
-    if (deck?.leader) {
+    if (deck) {
+      // Set leader from deck (null if deck has no leader)
       setMyLeader(deck.leader)
     }
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="tournament-modal-overlay" onClick={onClose}>
       <div className="tournament-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{tournament ? '大会を編集' : '大会を追加'}</h2>

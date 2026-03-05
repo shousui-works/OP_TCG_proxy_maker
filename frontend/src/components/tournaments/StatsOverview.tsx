@@ -139,7 +139,12 @@ export function StatsOverview({ tournaments, isExpanded, onToggle }: StatsOvervi
 
   return (
     <div className="stats-overview">
-      <button className="stats-toggle" onClick={onToggle}>
+      <button
+        className="stats-toggle"
+        onClick={onToggle}
+        aria-expanded={isExpanded}
+        aria-controls="stats-details"
+      >
         <span className="toggle-icon">{isExpanded ? '▼' : '▶'}</span>
         <span className="stats-summary">
           全体: {formatRecord(stats.overall)} ({stats.overall.winRate.toFixed(1)}%)
@@ -147,7 +152,7 @@ export function StatsOverview({ tournaments, isExpanded, onToggle }: StatsOvervi
       </button>
 
       {isExpanded && (
-        <div className="stats-details">
+        <div id="stats-details" className="stats-details">
           {/* By Tournament Type */}
           <div className="stats-section">
             <h4>大会タイプ別</h4>
