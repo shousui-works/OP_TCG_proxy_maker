@@ -241,7 +241,7 @@ export default function HamburgerMenu({
             ホーム
           </Link>
           <Link to="/tournaments" className="footer-link" onClick={onClose}>
-            大会管理
+            戦績管理
           </Link>
         </div>
       </aside>

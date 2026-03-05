@@ -54,12 +54,13 @@ export interface DeckResponse {
 
 // ===== Tournament Types =====
 
-export type TournamentType = 'flagship' | 'standard_battle' | 'championship' | 'other'
+export type TournamentType = 'flagship' | 'standard_battle' | 'championship' | 'freeplay' | 'other'
 
 export const TOURNAMENT_TYPE_LABELS: Record<TournamentType, string> = {
   flagship: 'フラッグシップ',
   standard_battle: 'スタンダードバトル',
   championship: 'チャンピオンシップ',
+  freeplay: 'フリープレイ',
   other: 'その他',
 }
 
@@ -79,6 +80,12 @@ export interface LeaderCard {
   series_id?: string
 }
 
+export interface DeckVersionRef {
+  versionId: string
+  versionNumber: number
+  versionName: string | null
+}
+
 export interface Tournament {
   id: string
   name: string
@@ -86,6 +93,7 @@ export interface Tournament {
   type: TournamentType
   customTypeName: string | null
   myDeckId: string | null
+  myDeckVersion: DeckVersionRef | null
   myLeader: LeaderCard | null
   createdAt: Date
   updatedAt: Date
@@ -107,6 +115,10 @@ export interface Match {
   memo: string | null
   order: number
   createdAt: Date
+  // フリープレイ用：試合ごとのデッキ情報
+  myDeckId: string | null
+  myDeckVersion: DeckVersionRef | null
+  myLeader: LeaderCard | null
 }
 
 export interface WinRateStats {

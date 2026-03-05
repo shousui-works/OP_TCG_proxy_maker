@@ -34,6 +34,7 @@ export function StatsOverview({ tournaments, isExpanded, onToggle }: StatsOvervi
       flagship: { wins: 0, losses: 0, draws: 0, total: 0, winRate: 0 },
       standard_battle: { wins: 0, losses: 0, draws: 0, total: 0, winRate: 0 },
       championship: { wins: 0, losses: 0, draws: 0, total: 0, winRate: 0 },
+      freeplay: { wins: 0, losses: 0, draws: 0, total: 0, winRate: 0 },
       other: { wins: 0, losses: 0, draws: 0, total: 0, winRate: 0 },
     }
 
@@ -51,8 +52,8 @@ export function StatsOverview({ tournaments, isExpanded, onToggle }: StatsOvervi
       typeStat.draws += tournament.draws
       typeStat.total += tournament.matches.length
 
-      // Aggregate my leader stats
-      if (tournament.myLeader) {
+      // フリープレイ以外: 大会単位で使用リーダー統計を集計
+      if (tournament.type !== 'freeplay' && tournament.myLeader) {
         const key = tournament.myLeader.id
         if (!byMyLeader.has(key)) {
           byMyLeader.set(key, {
@@ -67,12 +68,28 @@ export function StatsOverview({ tournaments, isExpanded, onToggle }: StatsOvervi
         leaderStat.total += tournament.matches.length
       }
 
-      // Aggregate opponent leader stats
+      // Aggregate opponent leader stats and freeplay my leader stats
       for (const match of tournament.matches) {
         overall.total++
         if (match.result === 'win') overall.wins++
         else if (match.result === 'loss') overall.losses++
         else overall.draws++
+
+        // フリープレイ: 試合ごとに使用リーダー統計を集計
+        if (tournament.type === 'freeplay' && match.myLeader) {
+          const key = match.myLeader.id
+          if (!byMyLeader.has(key)) {
+            byMyLeader.set(key, {
+              leader: match.myLeader,
+              stat: { wins: 0, losses: 0, draws: 0, total: 0, winRate: 0 },
+            })
+          }
+          const leaderStat = byMyLeader.get(key)!.stat
+          leaderStat.total++
+          if (match.result === 'win') leaderStat.wins++
+          else if (match.result === 'loss') leaderStat.losses++
+          else leaderStat.draws++
+        }
 
         if (match.opponentLeader) {
           const key = match.opponentLeader.id
