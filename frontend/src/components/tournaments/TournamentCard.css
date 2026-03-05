@@ -1,0 +1,146 @@
+.tournament-card {
+  background: var(--bg-secondary, #16213e);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #2a2a4a);
+  overflow: hidden;
+}
+
+.tournament-card.expanded {
+  border-color: var(--accent-color, #4fc3f7);
+}
+
+.tournament-card-header {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+  cursor: pointer;
+  gap: 0.75rem;
+}
+
+.tournament-card-header:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.expand-button {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #aaa);
+  font-size: 0.875rem;
+  padding: 0;
+  width: 1.5rem;
+  cursor: pointer;
+}
+
+.tournament-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tournament-main-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.tournament-type-badge {
+  background: var(--accent-color, #4fc3f7);
+  color: #000;
+  padding: 0.125rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.tournament-date {
+  color: var(--text-secondary, #aaa);
+  font-size: 0.875rem;
+}
+
+.tournament-record {
+  color: var(--text-primary, #e0e0e0);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.tournament-name {
+  font-size: 1rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tournament-deck {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary, #aaa);
+}
+
+.leader-thumbnail {
+  width: 24px;
+  height: auto;
+  border-radius: 2px;
+}
+
+.tournament-winrate {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent-color, #4fc3f7);
+  min-width: 60px;
+  text-align: right;
+}
+
+.tournament-card-body {
+  border-top: 1px solid var(--border-color, #2a2a4a);
+  padding: 0.75rem;
+}
+
+.tournament-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.action-button {
+  background: var(--bg-tertiary, #1f2937);
+  border: 1px solid var(--border-color, #2a2a4a);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.action-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.action-button.delete {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.action-button.delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .tournament-card-header {
+    padding: 0.5rem;
+  }
+
+  .tournament-winrate {
+    font-size: 1rem;
+    min-width: 50px;
+  }
+
+  .tournament-name {
+    font-size: 0.9rem;
+  }
+}
