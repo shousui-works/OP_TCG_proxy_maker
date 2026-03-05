@@ -787,8 +787,12 @@ function App() {
       ) : (
         <header className="header">
           <div className="header-left">
-            <h1>OP-TCG base</h1>
-            <Link to="/admin" className="admin-link">Admin</Link>
+            <Link to="/" className="home-link">
+              <h1>OP-TCG base</h1>
+            </Link>
+            <nav className="header-nav">
+              <Link to="/tournaments" className="nav-link">大会管理</Link>
+            </nav>
           </div>
           <div className="deck-controls">
             <div className="current-deck">

@@ -177,7 +177,13 @@
   flex-shrink: 0;
 }
 
-.admin-link {
+.menu-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.footer-link {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -192,8 +198,8 @@
   transition: var(--transition-fast);
 }
 
-.admin-link:hover,
-.admin-link:active {
+.footer-link:hover,
+.footer-link:active {
   background: var(--color-info);
 }
 

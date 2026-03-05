@@ -237,8 +237,11 @@ export default function HamburgerMenu({
         </div>
 
         <div className="menu-footer">
-          <Link to="/admin" className="admin-link" onClick={onClose}>
-            Admin
+          <Link to="/" className="footer-link" onClick={onClose}>
+            ホーム
+          </Link>
+          <Link to="/tournaments" className="footer-link" onClick={onClose}>
+            大会管理
           </Link>
         </div>
       </aside>

@@ -944,13 +944,34 @@
     gap: var(--spacing-lg);
   }
 
+  .home-link {
+    text-decoration: none;
+  }
+
+  .home-link h1 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--color-accent);
+    transition: var(--transition-fast);
+  }
+
+  .home-link:hover h1 {
+    opacity: 0.8;
+  }
+
   .header h1 {
     margin: 0;
     font-size: 1.25rem;
     color: var(--color-accent);
   }
 
-  .admin-link {
+  .header-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .nav-link {
     color: var(--color-text-secondary);
     text-decoration: none;
     font-size: 0.875rem;
@@ -960,9 +981,15 @@
     transition: var(--transition-fast);
   }
 
-  .admin-link:hover {
+  .nav-link:hover {
     color: var(--color-accent);
     border-color: var(--color-accent);
+  }
+
+  .nav-link.admin-link {
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
   }
 
   .deck-controls {
