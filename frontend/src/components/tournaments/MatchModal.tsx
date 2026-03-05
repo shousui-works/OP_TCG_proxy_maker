@@ -11,11 +11,11 @@ interface MatchModalProps {
   isFreeplay?: boolean
   onSave: (data: {
     result: MatchResult
-    opponentLeader?: LeaderCard
+    opponentLeader?: LeaderCard | null
     memo?: string
-    myDeckId?: string
-    myDeckVersion?: DeckVersionRef
-    myLeader?: LeaderCard
+    myDeckId?: string | null
+    myDeckVersion?: DeckVersionRef | null
+    myLeader?: LeaderCard | null
   }) => void
   onClose: () => void
 }
@@ -120,9 +120,9 @@ export function MatchModal({ match, isFreeplay = false, onSave, onClose }: Match
           opponentLeader: opponentLeader || undefined,
           memo: memo.trim() || undefined,
           ...(isFreeplay && {
-            myDeckId: selectedDeckName || undefined,
-            myDeckVersion: selectedVersion || undefined,
-            myLeader: myLeader || undefined,
+            myDeckId: selectedDeckName || null,
+            myDeckVersion: selectedVersion,
+            myLeader: myLeader,
           }),
         })
       )

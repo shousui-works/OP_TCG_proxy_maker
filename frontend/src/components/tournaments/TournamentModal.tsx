@@ -13,9 +13,9 @@ interface TournamentModalProps {
     date: Date
     type: TournamentType
     customTypeName?: string
-    myDeckId?: string
-    myDeckVersion?: DeckVersionRef
-    myLeader?: LeaderCard
+    myDeckId?: string | null
+    myDeckVersion?: DeckVersionRef | null
+    myLeader?: LeaderCard | null
   }) => void
   onClose: () => void
 }
@@ -87,7 +87,7 @@ export function TournamentModal({ tournament, onSave, onClose }: TournamentModal
     e.preventDefault()
     if (!name.trim()) return
 
-    // フリープレイの場合はデッキ情報を保存しない
+    // フリープレイの場合はデッキ情報をnullでクリアする
     const isFreeplay = type === 'freeplay'
 
     onSave({
@@ -95,9 +95,9 @@ export function TournamentModal({ tournament, onSave, onClose }: TournamentModal
       date: parseDateFromInput(date),
       type,
       customTypeName: type === 'other' ? customTypeName : undefined,
-      myDeckId: isFreeplay ? undefined : selectedDeckName || undefined,
-      myDeckVersion: isFreeplay ? undefined : selectedVersion || undefined,
-      myLeader: isFreeplay ? undefined : myLeader || undefined,
+      myDeckId: isFreeplay ? null : selectedDeckName || undefined,
+      myDeckVersion: isFreeplay ? null : selectedVersion || undefined,
+      myLeader: isFreeplay ? null : myLeader || undefined,
     })
   }
 

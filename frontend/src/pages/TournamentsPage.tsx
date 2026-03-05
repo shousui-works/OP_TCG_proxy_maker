@@ -90,8 +90,9 @@ export function TournamentsPage() {
     date: Date
     type: TournamentType
     customTypeName?: string
-    myDeckId?: string
-    myLeader?: LeaderCard
+    myDeckId?: string | null
+    myDeckVersion?: DeckVersionRef | null
+    myLeader?: LeaderCard | null
   }) => {
     try {
       if (editingTournament) {
@@ -131,11 +132,11 @@ export function TournamentsPage() {
 
   const handleSaveMatch = async (data: {
     result: MatchResult
-    opponentLeader?: LeaderCard
+    opponentLeader?: LeaderCard | null
     memo?: string
-    myDeckId?: string
-    myDeckVersion?: DeckVersionRef
-    myLeader?: LeaderCard
+    myDeckId?: string | null
+    myDeckVersion?: DeckVersionRef | null
+    myLeader?: LeaderCard | null
   }) => {
     if (!editingMatch) return
 

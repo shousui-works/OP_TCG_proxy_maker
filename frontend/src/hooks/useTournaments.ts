@@ -125,9 +125,9 @@ export function useTournaments() {
       date: Date
       type: TournamentType
       customTypeName?: string
-      myDeckId?: string
-      myDeckVersion?: DeckVersionRef
-      myLeader?: LeaderCard
+      myDeckId?: string | null
+      myDeckVersion?: DeckVersionRef | null
+      myLeader?: LeaderCard | null
     }): Promise<string> => {
       if (!user) throw new Error('User not authenticated')
 

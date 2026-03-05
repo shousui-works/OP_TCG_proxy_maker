@@ -89,11 +89,11 @@ export function useMatches() {
       tournamentId: string,
       data: {
         result: MatchResult
-        opponentLeader?: LeaderCard
+        opponentLeader?: LeaderCard | null
         memo?: string
-        myDeckId?: string
-        myDeckVersion?: DeckVersionRef
-        myLeader?: LeaderCard
+        myDeckId?: string | null
+        myDeckVersion?: DeckVersionRef | null
+        myLeader?: LeaderCard | null
       }
     ): Promise<string> => {
       if (!user) throw new Error('User not authenticated')
