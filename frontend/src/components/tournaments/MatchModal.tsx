@@ -22,15 +22,24 @@ export function MatchModal({ match, onSave, onClose }: MatchModalProps) {
   )
   const [memo, setMemo] = useState(match?.memo || '')
   const [showLeaderPicker, setShowLeaderPicker] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSaving) return
 
-    onSave({
-      result,
-      opponentLeader: opponentLeader || undefined,
-      memo: memo.trim() || undefined,
-    })
+    setIsSaving(true)
+    try {
+      await Promise.resolve(
+        onSave({
+          result,
+          opponentLeader: opponentLeader || undefined,
+          memo: memo.trim() || undefined,
+        })
+      )
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -38,7 +47,7 @@ export function MatchModal({ match, onSave, onClose }: MatchModalProps) {
       <div className="match-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{match ? '試合を編集' : '試合を追加'}</h2>
-          <button className="close-button" onClick={onClose}>
+          <button className="close-button" onClick={onClose} aria-label="モーダルを閉じる">
             ×
           </button>
         </div>
@@ -73,6 +82,7 @@ export function MatchModal({ match, onSave, onClose }: MatchModalProps) {
                     type="button"
                     className="clear-leader"
                     onClick={() => setOpponentLeader(null)}
+                    aria-label="相手リーダーを解除"
                   >
                     ×
                   </button>
@@ -104,7 +114,7 @@ export function MatchModal({ match, onSave, onClose }: MatchModalProps) {
             <button type="button" className="cancel-button" onClick={onClose}>
               キャンセル
             </button>
-            <button type="submit" className="save-button">
+            <button type="submit" className="save-button" disabled={isSaving}>
               保存
             </button>
           </div>

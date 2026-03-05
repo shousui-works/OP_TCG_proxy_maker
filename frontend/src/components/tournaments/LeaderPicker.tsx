@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { LeaderCard, Card } from '../../types'
+import { resolveCardImage } from '../../utils/cardImage'
 import './LeaderPicker.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
@@ -71,7 +72,7 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
     onSelect({
       id: card.id,
       name: card.name,
-      image: card.image_url || card.image,
+      image: resolveCardImage(card.image_url || card.image, card.id),
       color: card.color,
       series_id: card.series_id,
     })
@@ -116,7 +117,7 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
           ) : (
             <div className="leader-grid">
               {filteredLeaders.map((leader) => {
-                const imageUrl = leader.image_url || leader.image
+                const imageUrl = resolveCardImage(leader.image_url || leader.image, leader.id)
                 return (
                   <button
                     key={leader.id}

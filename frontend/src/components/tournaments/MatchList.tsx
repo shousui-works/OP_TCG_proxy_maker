@@ -69,6 +69,7 @@ export function MatchList({
                   className="match-action-btn"
                   onClick={() => onEditMatch(match)}
                   title="編集"
+                  aria-label="試合を編集"
                 >
                   ✏️
                 </button>
@@ -76,6 +77,7 @@ export function MatchList({
                   className="match-action-btn delete"
                   onClick={() => onDeleteMatch(match.id)}
                   title="削除"
+                  aria-label="試合を削除"
                 >
                   🗑️
                 </button>

@@ -1,3 +1,14 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
 .match-modal {
   background: var(--bg-secondary, #16213e);
   border-radius: 8px;
@@ -113,15 +124,6 @@
 .match-modal textarea:focus {
   outline: none;
   border-color: var(--accent-color, #4fc3f7);
-}
-
-.match-modal .modal-header,
-.match-modal form,
-.match-modal .form-group,
-.match-modal .modal-actions,
-.match-modal .cancel-button,
-.match-modal .save-button {
-  /* Inherit from TournamentModal.css */
 }
 
 .match-modal .modal-header {
