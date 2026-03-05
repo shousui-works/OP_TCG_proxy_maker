@@ -8,6 +8,7 @@ import type {
   LeaderCard,
   TournamentType,
   MatchResult,
+  DeckVersionRef,
 } from '../types'
 
 // Helper to get Firestore functions lazily
@@ -79,6 +80,9 @@ export function useTournaments() {
               memo: matchData.memo || null,
               order: matchData.order || 0,
               createdAt: matchData.createdAt?.toDate() || new Date(),
+              myDeckId: matchData.myDeckId || null,
+              myDeckVersion: matchData.myDeckVersion || null,
+              myLeader: matchData.myLeader || null,
             }
           })
 
@@ -95,6 +99,7 @@ export function useTournaments() {
             type: data.type as TournamentType,
             customTypeName: data.customTypeName || null,
             myDeckId: data.myDeckId || null,
+            myDeckVersion: data.myDeckVersion || null,
             myLeader: data.myLeader || null,
             createdAt: data.createdAt?.toDate() || new Date(),
             updatedAt: data.updatedAt?.toDate() || new Date(),
@@ -121,6 +126,7 @@ export function useTournaments() {
       type: TournamentType
       customTypeName?: string
       myDeckId?: string
+      myDeckVersion?: DeckVersionRef
       myLeader?: LeaderCard
     }): Promise<string> => {
       if (!user) throw new Error('User not authenticated')
@@ -136,6 +142,7 @@ export function useTournaments() {
         type: data.type,
         customTypeName: data.customTypeName || null,
         myDeckId: data.myDeckId || null,
+        myDeckVersion: data.myDeckVersion || null,
         myLeader: data.myLeader || null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -155,6 +162,7 @@ export function useTournaments() {
         type: TournamentType
         customTypeName: string | null
         myDeckId: string | null
+        myDeckVersion: DeckVersionRef | null
         myLeader: LeaderCard | null
       }>
     ): Promise<void> => {
@@ -174,6 +182,7 @@ export function useTournaments() {
       if (data.type !== undefined) updateData.type = data.type
       if (data.customTypeName !== undefined) updateData.customTypeName = data.customTypeName
       if (data.myDeckId !== undefined) updateData.myDeckId = data.myDeckId
+      if (data.myDeckVersion !== undefined) updateData.myDeckVersion = data.myDeckVersion
       if (data.myLeader !== undefined) updateData.myLeader = data.myLeader
 
       await setDoc(tournamentRef, updateData, { merge: true })
@@ -225,6 +234,7 @@ export function useTournaments() {
           type: data.type as TournamentType,
           customTypeName: data.customTypeName || null,
           myDeckId: data.myDeckId || null,
+          myDeckVersion: data.myDeckVersion || null,
           myLeader: data.myLeader || null,
           createdAt: data.createdAt?.toDate() || new Date(),
           updatedAt: data.updatedAt?.toDate() || new Date(),

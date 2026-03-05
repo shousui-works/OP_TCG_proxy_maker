@@ -14,6 +14,7 @@ import type {
   TournamentType,
   LeaderCard,
   MatchResult,
+  DeckVersionRef,
 } from '../types'
 import './TournamentsPage.css'
 
@@ -132,6 +133,9 @@ export function TournamentsPage() {
     result: MatchResult
     opponentLeader?: LeaderCard
     memo?: string
+    myDeckId?: string
+    myDeckVersion?: DeckVersionRef
+    myLeader?: LeaderCard
   }) => {
     if (!editingMatch) return
 
@@ -161,6 +165,12 @@ export function TournamentsPage() {
     }
   }
 
+  // フリープレイかどうかを判定するヘルパー
+  const isFreeplayTournament = (tournamentId: string): boolean => {
+    const tournament = tournaments.find((t) => t.id === tournamentId)
+    return tournament?.type === 'freeplay'
+  }
+
   // Show message if Firebase is disabled
   if (!isFirebaseEnabled) {
     return (
@@ -169,10 +179,10 @@ export function TournamentsPage() {
           <button className="back-button" onClick={() => navigate('/')}>
             ← 戻る
           </button>
-          <h1>大会管理</h1>
+          <h1>戦績管理</h1>
         </header>
         <div className="login-prompt">
-          <p>大会管理機能は現在利用できません。</p>
+          <p>戦績管理機能は現在利用できません。</p>
         </div>
       </div>
     )
@@ -186,10 +196,10 @@ export function TournamentsPage() {
           <button className="back-button" onClick={() => navigate('/')}>
             ← 戻る
           </button>
-          <h1>大会管理</h1>
+          <h1>戦績管理</h1>
         </header>
         <div className="login-prompt">
-          <p>大会管理機能を使用するにはログインが必要です。</p>
+          <p>戦績管理機能を使用するにはログインが必要です。</p>
           <LoginButton />
         </div>
       </div>
@@ -202,7 +212,7 @@ export function TournamentsPage() {
         <button className="back-button" onClick={() => navigate('/')}>
           ← 戻る
         </button>
-        <h1>大会管理</h1>
+        <h1>戦績管理</h1>
         <button className="add-tournament-button" onClick={handleAddTournament}>
           + 追加
         </button>
@@ -259,6 +269,7 @@ export function TournamentsPage() {
       {showMatchModal && editingMatch && (
         <MatchModal
           match={editingMatch.match}
+          isFreeplay={isFreeplayTournament(editingMatch.tournamentId)}
           onSave={handleSaveMatch}
           onClose={() => {
             setShowMatchModal(false)

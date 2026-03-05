@@ -60,7 +60,15 @@ export function TournamentCard({
                 alt={tournament.myLeader.name}
                 className="leader-thumbnail"
               />
-              <span>{tournament.myLeader.name}</span>
+              <span>
+                {tournament.myLeader.name}
+                {tournament.myDeckVersion && (
+                  <span className="deck-version-badge">
+                    v{tournament.myDeckVersion.versionNumber}
+                    {tournament.myDeckVersion.versionName && ` ${tournament.myDeckVersion.versionName}`}
+                  </span>
+                )}
+              </span>
             </div>
           )}
         </div>
@@ -83,6 +91,7 @@ export function TournamentCard({
 
           <MatchList
             matches={tournament.matches}
+            isFreeplay={tournament.type === 'freeplay'}
             onAddMatch={onAddMatch}
             onEditMatch={onEditMatch}
             onDeleteMatch={onDeleteMatch}

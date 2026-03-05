@@ -5,6 +5,7 @@ import './MatchList.css'
 
 interface MatchListProps {
   matches: Match[]
+  isFreeplay?: boolean
   onAddMatch: () => void
   onEditMatch: (match: Match) => void
   onDeleteMatch: (matchId: string) => void
@@ -12,6 +13,7 @@ interface MatchListProps {
 
 export function MatchList({
   matches,
+  isFreeplay = false,
   onAddMatch,
   onEditMatch,
   onDeleteMatch,
@@ -48,6 +50,18 @@ export function MatchList({
               <span className={`match-result ${getResultClass(match.result)}`}>
                 {MATCH_RESULT_LABELS[match.result]}
               </span>
+              {isFreeplay && match.myLeader && (
+                <div className="my-leader">
+                  <img
+                    src={resolveCardImage(match.myLeader.image, match.myLeader.id)}
+                    alt={match.myLeader.name}
+                    className="my-leader-img"
+                  />
+                  {match.myDeckVersion && (
+                    <span className="my-deck-version">v{match.myDeckVersion.versionNumber}</span>
+                  )}
+                </div>
+              )}
               {match.opponentLeader ? (
                 <div className="opponent-leader">
                   <span>vs</span>

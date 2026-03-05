@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { getDbInstance, initializeFirebase } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
-import type { Match, LeaderCard, MatchResult } from '../types'
+import type { Match, LeaderCard, MatchResult, DeckVersionRef } from '../types'
 
 // Helper to get Firestore functions lazily
 async function getFirestoreFunctions() {
@@ -71,6 +71,9 @@ export function useMatches() {
             memo: data.memo || null,
             order: data.order || 0,
             createdAt: data.createdAt?.toDate() || new Date(),
+            myDeckId: data.myDeckId || null,
+            myDeckVersion: data.myDeckVersion || null,
+            myLeader: data.myLeader || null,
           }
         })
       } catch (error) {
@@ -88,6 +91,9 @@ export function useMatches() {
         result: MatchResult
         opponentLeader?: LeaderCard
         memo?: string
+        myDeckId?: string
+        myDeckVersion?: DeckVersionRef
+        myLeader?: LeaderCard
       }
     ): Promise<string> => {
       if (!user) throw new Error('User not authenticated')
@@ -115,6 +121,9 @@ export function useMatches() {
         memo: data.memo || null,
         order: highestOrder + 1,
         createdAt: serverTimestamp(),
+        myDeckId: data.myDeckId || null,
+        myDeckVersion: data.myDeckVersion || null,
+        myLeader: data.myLeader || null,
       })
 
       return docRef.id
@@ -130,6 +139,9 @@ export function useMatches() {
         result: MatchResult
         opponentLeader: LeaderCard | null
         memo: string | null
+        myDeckId: string | null
+        myDeckVersion: DeckVersionRef | null
+        myLeader: LeaderCard | null
       }>
     ): Promise<void> => {
       if (!user) throw new Error('User not authenticated')
@@ -151,6 +163,9 @@ export function useMatches() {
       if (data.result !== undefined) updateData.result = data.result
       if (data.opponentLeader !== undefined) updateData.opponentLeader = data.opponentLeader
       if (data.memo !== undefined) updateData.memo = data.memo
+      if (data.myDeckId !== undefined) updateData.myDeckId = data.myDeckId
+      if (data.myDeckVersion !== undefined) updateData.myDeckVersion = data.myDeckVersion
+      if (data.myLeader !== undefined) updateData.myLeader = data.myLeader
 
       await setDoc(matchRef, updateData, { merge: true })
     },
@@ -209,6 +224,9 @@ export function useMatches() {
           memo: data.memo || null,
           order: data.order || 0,
           createdAt: data.createdAt?.toDate() || new Date(),
+          myDeckId: data.myDeckId || null,
+          myDeckVersion: data.myDeckVersion || null,
+          myLeader: data.myLeader || null,
         }
       } catch (error) {
         console.error('Failed to get match:', error)
