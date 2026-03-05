@@ -42,9 +42,9 @@ export function MatchList({
         <div className="no-matches">試合記録がありません</div>
       ) : (
         <div className="matches">
-          {matches.map((match, index) => (
+          {matches.map((match) => (
             <div key={match.id} className="match-item">
-              <span className="match-round">R{index + 1}</span>
+              <span className="match-round">R{match.order}</span>
               <span className={`match-result ${getResultClass(match.result)}`}>
                 {MATCH_RESULT_LABELS[match.result]}
               </span>

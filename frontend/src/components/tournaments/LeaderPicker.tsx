@@ -23,12 +23,14 @@ const COLOR_OPTIONS = [
 export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
   const [allCards, setAllCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [colorFilter, setColorFilter] = useState('')
 
   useEffect(() => {
     async function fetchCards() {
       try {
+        setError(null)
         const res = await fetch(`${API_BASE}/api/cards/data`)
         if (!res.ok) throw new Error('Failed to fetch cards')
         const data = await res.json()
@@ -36,8 +38,9 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
         const cardsObj = data.cards || {}
         const cardsArray = Object.values(cardsObj) as Card[]
         setAllCards(cardsArray)
-      } catch (error) {
-        console.error('Failed to fetch cards:', error)
+      } catch (err) {
+        console.error('Failed to fetch cards:', err)
+        setError('カードデータの読み込みに失敗しました')
       } finally {
         setLoading(false)
       }
@@ -83,7 +86,7 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
       <div className="leader-picker" onClick={(e) => e.stopPropagation()}>
         <div className="picker-header">
           <h3>リーダーを選択</h3>
-          <button className="close-button" onClick={onClose}>
+          <button className="close-button" onClick={onClose} aria-label="リーダー選択を閉じる">
             ×
           </button>
         </div>
@@ -112,6 +115,8 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
         <div className="picker-content">
           {loading ? (
             <div className="picker-loading">読み込み中...</div>
+          ) : error ? (
+            <div className="picker-error">{error}</div>
           ) : filteredLeaders.length === 0 ? (
             <div className="picker-empty">リーダーが見つかりません</div>
           ) : (

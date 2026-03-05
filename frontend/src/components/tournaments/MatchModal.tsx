@@ -63,6 +63,7 @@ export function MatchModal({ match, onSave, onClose }: MatchModalProps) {
                     type="button"
                     className={`result-button ${value} ${result === value ? 'selected' : ''}`}
                     onClick={() => setResult(value)}
+                    aria-pressed={result === value}
                   >
                     {label}
                   </button>
