@@ -59,7 +59,10 @@ export function TournamentModal({ tournament, onSave, onClose }: TournamentModal
     return new Date(year, month - 1, day)
   }
 
+  // デッキ一覧を取得（キャンセル制御付き）
   useEffect(() => {
+    let cancelled = false
+
     async function loadDecks() {
       setLoadingDecks(true)
       try {
@@ -73,15 +76,59 @@ export function TournamentModal({ tournament, onSave, onClose }: TournamentModal
             }
           })
         )
-        setSavedDecks(decksWithLeaders)
+        if (!cancelled) {
+          setSavedDecks(decksWithLeaders)
+        }
       } catch (error) {
-        console.error('Failed to load decks:', error)
+        if (!cancelled) {
+          console.error('Failed to load decks:', error)
+        }
       } finally {
-        setLoadingDecks(false)
+        if (!cancelled) {
+          setLoadingDecks(false)
+        }
       }
     }
     loadDecks()
+
+    return () => {
+      cancelled = true
+    }
   }, [fetchBranches, getDeck])
+
+  // バージョン一覧を selectedDeckName が変わったときに読み込む（キャンセル制御付き）
+  useEffect(() => {
+    // フリープレイの場合はバージョン読み込み不要
+    if (type === 'freeplay' || !selectedDeckName) {
+      setDeckVersions([])
+      return
+    }
+
+    let cancelled = false
+
+    async function loadVersions() {
+      setLoadingVersions(true)
+      try {
+        const versions = await fetchVersions(selectedDeckName, 20)
+        if (!cancelled) {
+          setDeckVersions(versions)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to load versions:', error)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingVersions(false)
+        }
+      }
+    }
+    loadVersions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [type, selectedDeckName, fetchVersions])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -101,28 +148,14 @@ export function TournamentModal({ tournament, onSave, onClose }: TournamentModal
     })
   }
 
-  const handleSelectDeck = async (deckName: string) => {
+  const handleSelectDeck = (deckName: string) => {
     setSelectedDeckName(deckName)
     setSelectedVersion(null)
-    setDeckVersions([])
 
     const deck = savedDecks.find((d) => d.name === deckName)
     if (deck) {
       // Set leader from deck (null if deck has no leader)
       setMyLeader(deck.leader)
-
-      // Load versions for selected deck
-      if (deckName) {
-        setLoadingVersions(true)
-        try {
-          const versions = await fetchVersions(deckName, 20)
-          setDeckVersions(versions)
-        } catch (error) {
-          console.error('Failed to load versions:', error)
-        } finally {
-          setLoadingVersions(false)
-        }
-      }
     }
   }
 

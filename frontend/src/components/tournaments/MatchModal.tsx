@@ -47,6 +47,8 @@ export function MatchModal({ match, isFreeplay = false, onSave, onClose }: Match
   useEffect(() => {
     if (!isFreeplay) return
 
+    let cancelled = false
+
     async function loadDecks() {
       setLoadingDecks(true)
       try {
@@ -60,36 +62,66 @@ export function MatchModal({ match, isFreeplay = false, onSave, onClose }: Match
             }
           })
         )
-        setSavedDecks(decksWithLeaders)
+        if (!cancelled) {
+          setSavedDecks(decksWithLeaders)
+        }
       } catch (error) {
-        console.error('Failed to load decks:', error)
+        if (!cancelled) {
+          console.error('Failed to load decks:', error)
+        }
       } finally {
-        setLoadingDecks(false)
+        if (!cancelled) {
+          setLoadingDecks(false)
+        }
       }
     }
     loadDecks()
+
+    return () => {
+      cancelled = true
+    }
   }, [isFreeplay, fetchBranches, getDeck])
 
-  const handleSelectDeck = async (deckName: string) => {
+  // バージョン一覧を selectedDeckName が変わったときに読み込む（キャンセル制御付き）
+  useEffect(() => {
+    if (!isFreeplay || !selectedDeckName) {
+      setDeckVersions([])
+      return
+    }
+
+    let cancelled = false
+
+    async function loadVersions() {
+      setLoadingVersions(true)
+      try {
+        const versions = await fetchVersions(selectedDeckName, 20)
+        if (!cancelled) {
+          setDeckVersions(versions)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to load versions:', error)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingVersions(false)
+        }
+      }
+    }
+    loadVersions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isFreeplay, selectedDeckName, fetchVersions])
+
+  const handleSelectDeck = (deckName: string) => {
     setSelectedDeckName(deckName)
     setSelectedVersion(null)
-    setDeckVersions([])
 
     const deck = savedDecks.find((d) => d.name === deckName)
     if (deck) {
       setMyLeader(deck.leader)
-
-      if (deckName) {
-        setLoadingVersions(true)
-        try {
-          const versions = await fetchVersions(deckName, 20)
-          setDeckVersions(versions)
-        } catch (error) {
-          console.error('Failed to load versions:', error)
-        } finally {
-          setLoadingVersions(false)
-        }
-      }
     }
   }
 
