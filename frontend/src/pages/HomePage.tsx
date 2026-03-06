@@ -1,10 +1,16 @@
 import { Link } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import LoginButton from '../components/LoginButton'
 import './HomePage.css'
 
 export default function HomePage() {
   return (
     <div className="home-page">
+      <Helmet>
+        <title>OP-TCG base - ONE PIECEカードゲーム デッキビルダー</title>
+        <meta name="description" content="ONE PIECEカードゲームのデッキ構築・戦績管理ツール。カードプールからデッキを作成し、PDF/画像出力が可能。" />
+        <link rel="canonical" href="https://op-tcg-base.ludora-base.com/" />
+      </Helmet>
       <header className="home-header">
         <h1>OP TCG Base</h1>
         <p className="home-subtitle">ワンピースカードゲーム管理ツール</p>
@@ -24,7 +30,7 @@ export default function HomePage() {
             </svg>
           </div>
           <h2>デッキ構築</h2>
-          <p>デッキの作成・編集・保存</p>
+          <p>デッキ作成・プロキシ出力</p>
         </Link>
 
         <Link to="/tournaments" className="menu-card tournaments">
@@ -36,8 +42,8 @@ export default function HomePage() {
               />
             </svg>
           </div>
-          <h2>大会結果管理</h2>
-          <p>大会登録・勝率管理</p>
+          <h2>戦績管理</h2>
+          <p>大会・試合記録・勝率管理</p>
         </Link>
       </div>
 

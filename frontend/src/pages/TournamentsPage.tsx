@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import { useAuth } from '../contexts/AuthContext'
 import { useTournaments } from '../hooks/useTournaments'
 import { useMatches } from '../hooks/useMatches'
@@ -172,10 +173,19 @@ export function TournamentsPage() {
     return tournament?.type === 'freeplay'
   }
 
+  const pageHead = (
+    <Helmet>
+      <title>戦績管理 | OP-TCG base</title>
+      <meta name="description" content="ONE PIECEカードゲームの大会戦績を記録・管理。勝率やリーダー別統計を確認。" />
+      <link rel="canonical" href="https://op-tcg-base.ludora-base.com/tournaments" />
+    </Helmet>
+  )
+
   // Show message if Firebase is disabled
   if (!isFirebaseEnabled) {
     return (
       <div className="tournaments-page">
+        {pageHead}
         <header className="tournaments-header">
           <button className="back-button" onClick={() => navigate('/')}>
             ← 戻る
@@ -193,6 +203,7 @@ export function TournamentsPage() {
   if (!user) {
     return (
       <div className="tournaments-page">
+        {pageHead}
         <header className="tournaments-header">
           <button className="back-button" onClick={() => navigate('/')}>
             ← 戻る
@@ -209,6 +220,7 @@ export function TournamentsPage() {
 
   return (
     <div className="tournaments-page">
+      {pageHead}
       <header className="tournaments-header">
         <button className="back-button" onClick={() => navigate('/')}>
           ← 戻る
