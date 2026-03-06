@@ -737,9 +737,19 @@ function App() {
     setVersionName('')
   }
 
+  const deckPageHead = (
+    <Helmet>
+      <title>デッキ構築・プロキシメーカー | OP-TCG base</title>
+      <meta name="description" content="ONE PIECEカードゲームのデッキ構築・プロキシメーカー。カードプールから選んでデッキを作成、PDF/画像で出力してプロキシカードを印刷可能。" />
+      <meta name="keywords" content="ONE PIECE, カードゲーム, デッキビルダー, プロキシメーカー, プロキシカード, OPTCG, ワンピース" />
+      <link rel="canonical" href="https://op-tcg-base.ludora-base.com/deck" />
+    </Helmet>
+  )
+
   if (loading) {
     return (
       <div className={`app ${isMobile ? 'is-mobile' : ''}`}>
+        {deckPageHead}
         {isMobile ? (
           <MobileHeader
             onMenuToggle={() => {}}
@@ -778,12 +788,7 @@ function App() {
 
   return (
     <div className={`app ${isMobile ? 'is-mobile' : ''}`}>
-      <Helmet>
-        <title>デッキ構築・プロキシメーカー | OP-TCG base</title>
-        <meta name="description" content="ONE PIECEカードゲームのデッキ構築・プロキシメーカー。カードプールから選んでデッキを作成、PDF/画像で出力してプロキシカードを印刷可能。" />
-        <meta name="keywords" content="ONE PIECE, カードゲーム, デッキビルダー, プロキシメーカー, プロキシカード, OPTCG, ワンピース" />
-        <link rel="canonical" href="https://op-tcg-base.ludora-base.com/deck" />
-      </Helmet>
+      {deckPageHead}
       {/* モバイルヘッダー */}
       {isMobile ? (
         <MobileHeader
