@@ -45,12 +45,13 @@ def _filter_card_fields(cards: dict) -> dict:
 
 
 @router.get("/cards/data")
-def get_cards_data(full: bool = False):
+def get_cards_data(full: bool = True):
     """
     Get saved card data.
 
     Args:
-        full: If True, return all fields. Default returns essential fields only.
+        full: If True (default), return all fields for backward compat.
+              If False, return only essential fields for optimization.
     """
     # Try GCS first
     if GCSService.is_available() and settings.DATA_FILES_BUCKET:

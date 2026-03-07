@@ -212,6 +212,12 @@ function App() {
           fetch(`${API_BASE}/api/cards?include_details=true`),
           fetch(`${API_BASE}/api/series`)
         ])
+        if (!cardsRes.ok) {
+          throw new Error(`Failed to fetch cards: ${cardsRes.status}`)
+        }
+        if (!seriesRes.ok) {
+          throw new Error(`Failed to fetch series: ${seriesRes.status}`)
+        }
         const cardsData = await cardsRes.json()
         const seriesData = await seriesRes.json()
 

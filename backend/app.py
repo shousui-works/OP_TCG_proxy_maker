@@ -11,7 +11,13 @@ from backend.config import settings
 
 app = FastAPI(title="OP TCG Deck Builder API")
 
-# GZip compression for responses > 500 bytes
+# GZip compression for JSON/text responses > 500 bytes
+# Note: GZipMiddleware checks Accept-Encoding header and content size.
+# Image endpoints return pre-compressed formats (PNG/WebP), and gzip
+# compression on these has minimal effect while consuming CPU.
+# However, the overhead is acceptable for this application since:
+# 1. Most requests are JSON (cards list, deck data)
+# 2. Image endpoints use redirect to GCS in production
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # Configure CORS
