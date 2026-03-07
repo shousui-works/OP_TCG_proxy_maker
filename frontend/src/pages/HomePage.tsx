@@ -48,6 +48,14 @@ export default function HomePage() {
       </div>
 
       <footer className="home-footer">
+        <a
+          href="https://docs.google.com/forms/d/e/1FAIpQLSewyF2yFQQp4cCrJ8VJq273D5gUHj7jbTK4_R7YMNLJwWn8HQ/viewform"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="contact-link"
+        >
+          お問い合わせ
+        </a>
         <Link to="/admin" className="admin-link">Admin</Link>
       </footer>
     </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { LeaderCard, Card } from '../../types'
 import { resolveCardImage } from '../../utils/cardImage'
+import { normalizeForSearch } from '../../utils/textNormalize'
 import './LeaderPicker.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
@@ -53,12 +54,15 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
   }, [allCards])
 
   const filteredLeaders = useMemo(() => {
+    // 検索クエリの正規化はループ外で1回だけ実行
+    const normalizedQuery = search ? normalizeForSearch(search) : ''
+
     return leaders.filter((leader) => {
       // Search filter
-      if (search) {
-        const searchLower = search.toLowerCase()
-        const matchesName = leader.name.toLowerCase().includes(searchLower)
-        const matchesId = leader.id.toLowerCase().includes(searchLower)
+      if (normalizedQuery) {
+        const matchesName = normalizeForSearch(leader.name).includes(normalizedQuery)
+        const matchesId = normalizeForSearch(leader.id).includes(normalizedQuery)
+
         if (!matchesName && !matchesId) return false
       }
 

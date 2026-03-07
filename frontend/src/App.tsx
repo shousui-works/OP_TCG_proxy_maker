@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async'
 import './App.css'
 import { exportDeckToPDF } from './utils/pdfExport'
 import { exportDeckToImage } from './utils/deckImageExport'
+import { normalizeForSearch } from './utils/textNormalize'
 import { useAuth } from './contexts/AuthContext'
 import { useFirestoreDeck } from './hooks/useFirestoreDeck'
 import { useResponsive } from './hooks/useResponsive'
@@ -250,6 +251,9 @@ function App() {
 
   // フィルター済みカード（useMemoで最適化）
   const filteredCards = useMemo(() => {
+    // 検索クエリの正規化はループ外で1回だけ実行
+    const normalizedQuery = searchQuery ? normalizeForSearch(searchQuery) : ''
+
     return cards.filter(card => {
       if (selectedSeries.length > 0 && !selectedSeries.includes(card.series_id || '')) {
         return false
@@ -264,10 +268,10 @@ function App() {
       if (selectedRarities.length > 0 && !selectedRarities.includes(card.rarity || '')) {
         return false
       }
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase()
-        const matchId = card.id.toLowerCase().includes(q)
-        const matchName = card.name?.toLowerCase().includes(q)
+      if (normalizedQuery) {
+        const matchId = normalizeForSearch(card.id).includes(normalizedQuery)
+        const matchName = normalizeForSearch(card.name || '').includes(normalizedQuery)
+
         if (!matchId && !matchName) return false
       }
       return true
