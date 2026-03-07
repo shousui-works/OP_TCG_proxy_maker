@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import type { Card, Series } from '../types'
+import { normalizeForSearch } from '../utils/textNormalize'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
@@ -152,9 +153,10 @@ export function useCards(): UseCardsResult {
         return false
       }
       if (searchQuery) {
-        const q = searchQuery.toLowerCase()
-        const matchId = card.id.toLowerCase().includes(q)
-        const matchName = card.name?.toLowerCase().includes(q)
+        const normalizedQuery = normalizeForSearch(searchQuery)
+        const matchId = normalizeForSearch(card.id).includes(normalizedQuery)
+        const matchName = normalizeForSearch(card.name || '').includes(normalizedQuery)
+
         if (!matchId && !matchName) return false
       }
       return true

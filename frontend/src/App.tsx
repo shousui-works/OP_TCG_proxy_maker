@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async'
 import './App.css'
 import { exportDeckToPDF } from './utils/pdfExport'
 import { exportDeckToImage } from './utils/deckImageExport'
+import { normalizeForSearch } from './utils/textNormalize'
 import { useAuth } from './contexts/AuthContext'
 import { useFirestoreDeck } from './hooks/useFirestoreDeck'
 import { useResponsive } from './hooks/useResponsive'
@@ -265,9 +266,10 @@ function App() {
         return false
       }
       if (searchQuery) {
-        const q = searchQuery.toLowerCase()
-        const matchId = card.id.toLowerCase().includes(q)
-        const matchName = card.name?.toLowerCase().includes(q)
+        const normalizedQuery = normalizeForSearch(searchQuery)
+        const matchId = normalizeForSearch(card.id).includes(normalizedQuery)
+        const matchName = normalizeForSearch(card.name || '').includes(normalizedQuery)
+
         if (!matchId && !matchName) return false
       }
       return true
