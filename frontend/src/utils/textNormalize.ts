@@ -27,6 +27,7 @@ function fullwidthToHalfwidth(str: string): string {
 
 /**
  * 半角カタカナを全角カタカナに変換
+ * 濁点(ﾞ U+FF9E)・半濁点(ﾟ U+FF9F)付きの文字も正しく変換
  */
 const HALFWIDTH_KATAKANA_MAP: Record<string, string> = {
   ｱ: 'ア',
@@ -85,10 +86,54 @@ const HALFWIDTH_KATAKANA_MAP: Record<string, string> = {
   ｮ: 'ョ',
   ｯ: 'ッ',
   ｰ: 'ー',
+  '･': '・',
+}
+
+// 濁点付き変換マップ (基本文字 + ﾞ → 濁音)
+const DAKUTEN_MAP: Record<string, string> = {
+  カ: 'ガ',
+  キ: 'ギ',
+  ク: 'グ',
+  ケ: 'ゲ',
+  コ: 'ゴ',
+  サ: 'ザ',
+  シ: 'ジ',
+  ス: 'ズ',
+  セ: 'ゼ',
+  ソ: 'ゾ',
+  タ: 'ダ',
+  チ: 'ヂ',
+  ツ: 'ヅ',
+  テ: 'デ',
+  ト: 'ド',
+  ハ: 'バ',
+  ヒ: 'ビ',
+  フ: 'ブ',
+  ヘ: 'ベ',
+  ホ: 'ボ',
+  ウ: 'ヴ',
+}
+
+// 半濁点付き変換マップ (基本文字 + ﾟ → 半濁音)
+const HANDAKUTEN_MAP: Record<string, string> = {
+  ハ: 'パ',
+  ヒ: 'ピ',
+  フ: 'プ',
+  ヘ: 'ペ',
+  ホ: 'ポ',
 }
 
 function halfwidthKatakanaToFullwidth(str: string): string {
-  return str.replace(/[\uFF65-\uFF9F]/g, (char) => HALFWIDTH_KATAKANA_MAP[char] || char)
+  // まず基本文字を変換
+  let result = str.replace(/[\uFF65-\uFF9F]/g, (char) => HALFWIDTH_KATAKANA_MAP[char] || char)
+
+  // 濁点(ﾞ)との組み合わせを処理
+  result = result.replace(/(.)\uFF9E/g, (_, base) => DAKUTEN_MAP[base] || base + '゛')
+
+  // 半濁点(ﾟ)との組み合わせを処理
+  result = result.replace(/(.)\uFF9F/g, (_, base) => HANDAKUTEN_MAP[base] || base + '゜')
+
+  return result
 }
 
 /**

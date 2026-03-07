@@ -129,6 +129,9 @@ export function useCards(): UseCardsResult {
 
   // Filtered cards
   const filteredCards = useMemo(() => {
+    // 検索クエリの正規化はループ外で1回だけ実行
+    const normalizedQuery = searchQuery ? normalizeForSearch(searchQuery) : ''
+
     return cards.filter((card) => {
       if (
         selectedSeries.length > 0 &&
@@ -152,8 +155,7 @@ export function useCards(): UseCardsResult {
       ) {
         return false
       }
-      if (searchQuery) {
-        const normalizedQuery = normalizeForSearch(searchQuery)
+      if (normalizedQuery) {
         const matchId = normalizeForSearch(card.id).includes(normalizedQuery)
         const matchName = normalizeForSearch(card.name || '').includes(normalizedQuery)
 

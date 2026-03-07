@@ -54,10 +54,12 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
   }, [allCards])
 
   const filteredLeaders = useMemo(() => {
+    // 検索クエリの正規化はループ外で1回だけ実行
+    const normalizedQuery = search ? normalizeForSearch(search) : ''
+
     return leaders.filter((leader) => {
       // Search filter
-      if (search) {
-        const normalizedQuery = normalizeForSearch(search)
+      if (normalizedQuery) {
         const matchesName = normalizeForSearch(leader.name).includes(normalizedQuery)
         const matchesId = normalizeForSearch(leader.id).includes(normalizedQuery)
 
