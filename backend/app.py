@@ -4,11 +4,15 @@ FastAPI application definition
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from backend.api import branches, cards, decks, series
 from backend.config import settings
 
 app = FastAPI(title="OP TCG Deck Builder API")
+
+# GZip compression for responses > 500 bytes
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # Configure CORS
 app.add_middleware(
