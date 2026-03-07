@@ -2,6 +2,8 @@
 Card API endpoints
 """
 
+import json
+
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import RedirectResponse
 
@@ -12,11 +14,50 @@ from backend.utils.validators import validate_path_component
 
 router = APIRouter(tags=["cards"])
 
+# Fields needed by frontend for filtering/display
+CARD_FIELDS = [
+    "name", "rarity", "card_type", "cost", "life",
+    "power", "counter", "color", "attribute", "feature",
+]
+
+
+def _get_card_details() -> dict:
+    """Get card details from file/GCS"""
+    if GCSService.is_available() and settings.DATA_FILES_BUCKET:
+        data = GCSService.load_json(settings.DATA_FILES_BUCKET, "all_cards.json")
+        if data:
+            return data.get("cards", {})
+
+    if settings.CARDS_DATA_FILE.exists():
+        with open(settings.CARDS_DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("cards", {})
+
+    return {}
+
 
 @router.get("/cards")
-def list_cards():
-    """Get list of all available cards"""
-    return CardService.list_cards()
+def list_cards(include_details: bool = False):
+    """
+    Get list of all available cards.
+
+    Args:
+        include_details: If True, include card details (name, rarity, etc.)
+                        in each card. Combines /cards and /cards/data.
+    """
+    result = CardService.list_cards()
+
+    if include_details:
+        details = _get_card_details()
+        for card in result.get("cards", []):
+            card_id = card.get("id")
+            if card_id and card_id in details:
+                card_detail = details[card_id]
+                for field in CARD_FIELDS:
+                    if field in card_detail:
+                        card[field] = card_detail[field]
+
+    return result
 
 
 @router.get("/cards/{series_id}/{card_id}/image")

@@ -7,8 +7,8 @@ export default function HomePage() {
   return (
     <div className="home-page">
       <Helmet>
-        <title>OP-TCG base - ONE PIECEカードゲーム デッキビルダー</title>
-        <meta name="description" content="ONE PIECEカードゲームのデッキ構築・戦績管理ツール。カードプールからデッキを作成し、PDF/画像出力が可能。" />
+        <title>ワンピースカード プロキシメーカー | OP-TCG base</title>
+        <meta name="description" content="ワンピースカードのプロキシ作成・デッキ構築ツール。カードを選んでプロキシカードをPDF出力、印刷して練習に使えます。" />
         <link rel="canonical" href="https://op-tcg-base.ludora-base.com/" />
       </Helmet>
       <header className="home-header">

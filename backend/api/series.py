@@ -29,13 +29,36 @@ def get_series():
         return json.load(f)
 
 
+# Fields needed by frontend for filtering/display
+CARD_FIELDS = [
+    "name", "rarity", "card_type", "cost", "life",
+    "power", "counter", "color", "attribute", "feature",
+]
+
+
+def _filter_card_fields(cards: dict) -> dict:
+    """Filter card data to only include needed fields"""
+    return {
+        card_id: {k: v for k, v in card.items() if k in CARD_FIELDS}
+        for card_id, card in cards.items()
+    }
+
+
 @router.get("/cards/data")
-def get_cards_data():
-    """Get saved card data"""
+def get_cards_data(full: bool = True):
+    """
+    Get saved card data.
+
+    Args:
+        full: If True (default), return all fields for backward compat.
+              If False, return only essential fields for optimization.
+    """
     # Try GCS first
     if GCSService.is_available() and settings.DATA_FILES_BUCKET:
         data = GCSService.load_json(settings.DATA_FILES_BUCKET, "all_cards.json")
         if data:
+            if not full and "cards" in data:
+                data["cards"] = _filter_card_fields(data["cards"])
             return data
 
     # Fall back to local file
@@ -43,4 +66,9 @@ def get_cards_data():
         return {"cards": {}, "total_cards": 0, "crawled_at": None}
 
     with open(settings.CARDS_DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+
+    if not full and "cards" in data:
+        data["cards"] = _filter_card_fields(data["cards"])
+
+    return data

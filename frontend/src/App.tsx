@@ -204,36 +204,24 @@ function App() {
   }, [user, firestore, hasUnsavedChanges])
 
   // 初期化（カードデータ・シリーズはAPIから取得）
+  // 統合API（include_details=true）で1回のリクエストで全データを取得
   useEffect(() => {
     const initCards = async () => {
       try {
-        const [cardsRes, seriesRes, cardsDataRes] = await Promise.all([
-          fetch(`${API_BASE}/api/cards`),
-          fetch(`${API_BASE}/api/series`),
-          fetch(`${API_BASE}/api/cards/data`)
+        const [cardsRes, seriesRes] = await Promise.all([
+          fetch(`${API_BASE}/api/cards?include_details=true`),
+          fetch(`${API_BASE}/api/series`)
         ])
-        const cardsListData = await cardsRes.json()
+        if (!cardsRes.ok) {
+          throw new Error(`Failed to fetch cards: ${cardsRes.status}`)
+        }
+        if (!seriesRes.ok) {
+          throw new Error(`Failed to fetch series: ${seriesRes.status}`)
+        }
+        const cardsData = await cardsRes.json()
         const seriesData = await seriesRes.json()
-        const allCardsData = await cardsDataRes.json()
 
-        const cardsWithDetails = cardsListData.cards.map((card: Card) => {
-          const details = allCardsData.cards?.[card.id] || {}
-          return {
-            ...card,
-            name: details.name || card.name,
-            rarity: details.rarity,
-            card_type: details.card_type,
-            cost: details.cost,
-            life: details.life,
-            power: details.power,
-            counter: details.counter,
-            color: details.color,
-            attribute: details.attribute,
-            feature: details.feature,
-          }
-        })
-
-        setCards(cardsWithDetails)
+        setCards(cardsData.cards || [])
         setSeries(seriesData.series || [])
         setLoading(false)
       } catch (err) {
@@ -743,9 +731,9 @@ function App() {
 
   const deckPageHead = (
     <Helmet>
-      <title>デッキ構築・プロキシメーカー | OP-TCG base</title>
-      <meta name="description" content="ONE PIECEカードゲームのデッキ構築・プロキシメーカー。カードプールから選んでデッキを作成、PDF/画像で出力してプロキシカードを印刷可能。" />
-      <meta name="keywords" content="ONE PIECE, カードゲーム, デッキビルダー, プロキシメーカー, プロキシカード, OPTCG, ワンピース" />
+      <title>ワンピースカード プロキシ作成・デッキ構築 | OP-TCG base</title>
+      <meta name="description" content="ワンピースカードのプロキシ作成ツール。カードを選んでデッキを構築し、プロキシカードをPDF/画像で出力。印刷して練習に使えます。" />
+      <meta name="keywords" content="ワンピースカード, プロキシ, ONE PIECE, カードゲーム, デッキビルダー, プロキシカード, プロキシメーカー, OPTCG" />
       <link rel="canonical" href="https://op-tcg-base.ludora-base.com/deck" />
     </Helmet>
   )
