@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
+import { useAuth } from '../contexts/AuthContext'
 import LoginButton from '../components/LoginButton'
 import './HomePage.css'
 
 export default function HomePage() {
+  const { user } = useAuth()
+
   return (
     <div className="home-page">
       <Helmet>
@@ -14,9 +17,11 @@ export default function HomePage() {
       <header className="home-header">
         <h1>OP TCG Base</h1>
         <p className="home-subtitle">ワンピースカードゲーム管理ツール</p>
-        <div className="home-login">
-          <LoginButton />
-        </div>
+        {user && (
+          <div className="home-login">
+            <LoginButton />
+          </div>
+        )}
       </header>
 
       <div className="home-menu">
@@ -46,6 +51,24 @@ export default function HomePage() {
           <p>大会・試合記録・勝率管理</p>
         </Link>
       </div>
+
+      {/* ログインセクション（未ログイン時のみ表示） */}
+      {!user && (
+        <section className="login-section">
+          <div className="login-section-content">
+            <h2>Googleアカウントでログイン</h2>
+            <p>ログインすると、デッキをクラウドに保存できます</p>
+            <ul className="login-benefits">
+              <li>複数デバイスでデッキを共有</li>
+              <li>デッキのバージョン管理</li>
+              <li>戦績データの保存</li>
+            </ul>
+            <div className="login-section-button">
+              <LoginButton />
+            </div>
+          </div>
+        </section>
+      )}
 
       <footer className="home-footer">
         <a
