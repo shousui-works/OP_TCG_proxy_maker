@@ -781,6 +781,11 @@ function App() {
   return (
     <div className={`app ${isMobile ? 'is-mobile' : ''}`}>
       {deckPageHead}
+      {/* SEO: 検索エンジン用の説明テキスト（視覚的に非表示） */}
+      <div className="sr-only">
+        <h1>ワンピースカード プロキシメーカー</h1>
+        <p>ONE PIECEカードゲームのプロキシカード作成・デッキ構築ツール。カードを選んでデッキを構築し、プロキシカードをPDF/画像で出力。印刷して練習に使えます。無料でご利用いただけます。</p>
+      </div>
       {/* モバイルヘッダー */}
       {isMobile ? (
         <MobileHeader
