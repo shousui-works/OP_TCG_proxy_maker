@@ -92,6 +92,26 @@
   color: var(--text-secondary, #aaa);
 }
 
+.picker-hint {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: var(--text-secondary, #aaa);
+  text-align: center;
+}
+
+.picker-hint p {
+  margin: 0;
+}
+
+.picker-hint-sub {
+  font-size: 0.8125rem;
+  margin-top: 0.5rem;
+  color: var(--text-secondary, #888);
+}
+
 .picker-error {
   display: flex;
   justify-content: center;

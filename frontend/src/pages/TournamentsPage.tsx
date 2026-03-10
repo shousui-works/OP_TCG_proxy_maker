@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { Helmet } from 'react-helmet-async'
 import { useAuth } from '../contexts/AuthContext'
 import { useTournaments } from '../hooks/useTournaments'
@@ -226,9 +226,14 @@ export function TournamentsPage() {
           ← 戻る
         </button>
         <h1>戦績管理</h1>
-        <button className="add-tournament-button" onClick={handleAddTournament}>
-          + 追加
-        </button>
+        <div className="header-actions">
+          <Link to="/analytics" className="analytics-link">
+            分析
+          </Link>
+          <button className="add-tournament-button" onClick={handleAddTournament}>
+            + 追加
+          </button>
+        </div>
       </header>
 
       {loading ? (

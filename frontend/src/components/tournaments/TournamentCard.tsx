@@ -1,6 +1,7 @@
 import type { TournamentWithMatches, Match } from '../../types'
 import { TOURNAMENT_TYPE_LABELS } from '../../types'
 import { resolveCardImage } from '../../utils/cardImage'
+import { shareTournamentResult } from '../../utils/tweetGenerator'
 import { MatchList } from './MatchList'
 import './TournamentCard.css'
 
@@ -86,6 +87,13 @@ export function TournamentCard({
             </button>
             <button className="action-button delete" onClick={onDelete}>
               削除
+            </button>
+            <button
+              className="action-button tweet"
+              onClick={() => shareTournamentResult(tournament)}
+              title="結果をツイート"
+            >
+              𝕏
             </button>
           </div>
 

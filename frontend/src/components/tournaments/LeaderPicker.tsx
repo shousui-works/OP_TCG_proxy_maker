@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import type { LeaderCard, Card } from '../../types'
 import { resolveCardImage } from '../../utils/cardImage'
 import { normalizeForSearch } from '../../utils/textNormalize'
 import './LeaderPicker.css'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+const MIN_SEARCH_LENGTH = 1
 
 interface LeaderPickerProps {
   onSelect: (leader: LeaderCard) => void
@@ -27,6 +28,12 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [colorFilter, setColorFilter] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // 検索ボックスに自動フォーカス
+  useEffect(() => {
+    searchInputRef.current?.focus()
+  }, [])
 
   useEffect(() => {
     async function fetchCards() {
@@ -53,7 +60,15 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
     return allCards.filter((card) => card.card_type === 'LEADER')
   }, [allCards])
 
+  // 検索または色フィルターがあるかどうか
+  const hasSearchQuery = search.length >= MIN_SEARCH_LENGTH || colorFilter !== ''
+
   const filteredLeaders = useMemo(() => {
+    // 検索条件がない場合は空配列を返す
+    if (!hasSearchQuery) {
+      return []
+    }
+
     // 検索クエリの正規化はループ外で1回だけ実行
     const normalizedQuery = search ? normalizeForSearch(search) : ''
 
@@ -73,7 +88,7 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
 
       return true
     })
-  }, [leaders, search, colorFilter])
+  }, [leaders, search, colorFilter, hasSearchQuery])
 
   const handleSelect = (card: Card) => {
     onSelect({
@@ -97,8 +112,9 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
 
         <div className="picker-filters">
           <input
+            ref={searchInputRef}
             type="text"
-            placeholder="名前で検索..."
+            placeholder="リーダー名を入力して検索..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="search-input"
@@ -121,6 +137,11 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
             <div className="picker-loading">読み込み中...</div>
           ) : error ? (
             <div className="picker-error">{error}</div>
+          ) : !hasSearchQuery ? (
+            <div className="picker-hint">
+              <p>リーダー名または色で検索してください</p>
+              <p className="picker-hint-sub">例: ルフィ、ロー、シャンクス</p>
+            </div>
           ) : filteredLeaders.length === 0 ? (
             <div className="picker-empty">リーダーが見つかりません</div>
           ) : (
