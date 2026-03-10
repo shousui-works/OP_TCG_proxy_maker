@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage.tsx'
 import App from './App.tsx'
 import Admin from './Admin.tsx'
 import { TournamentsPage } from './pages/TournamentsPage.tsx'
+import { AnalyticsPage } from './pages/AnalyticsPage.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
@@ -19,6 +20,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/deck" element={<App />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/tournaments" element={<TournamentsPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

@@ -55,6 +55,19 @@ export default function HomePage() {
           <h2>戦績管理</h2>
           <p>大会・試合記録・勝率管理</p>
         </Link>
+
+        <Link to="/analytics" className="menu-card analytics">
+          <div className="menu-icon">
+            <svg viewBox="0 0 24 24" width="48" height="48">
+              <path
+                fill="currentColor"
+                d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"
+              />
+            </svg>
+          </div>
+          <h2>アナリティクス</h2>
+          <p>リーダー別・相手別の勝率分析</p>
+        </Link>
       </div>
 
       {/* ログインセクション（未ログイン時のみ表示） */}
