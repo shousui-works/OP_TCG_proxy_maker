@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Helmet } from 'react-helmet-async'
 import './App.css'
+import SEOHead, { createHowToStructuredData, createBreadcrumbStructuredData } from './components/SEOHead'
 import { exportDeckToPDF } from './utils/pdfExport'
 import { exportDeckToImage } from './utils/deckImageExport'
 import { normalizeForSearch } from './utils/textNormalize'
+import { sortCards, sortDeckCards } from './utils/cardSort'
 import { useAuth } from './contexts/AuthContext'
 import { useFirestoreDeck } from './hooks/useFirestoreDeck'
 import { useResponsive } from './hooks/useResponsive'
@@ -242,33 +243,40 @@ function App() {
     // 検索クエリの正規化はループ外で1回だけ実行
     const normalizedQuery = searchQuery ? normalizeForSearch(searchQuery) : ''
 
-    return cards.filter(card => {
-      if (selectedSeries.length > 0 && !selectedSeries.includes(card.series_id || '')) {
-        return false
-      }
-      if (selectedColors.length > 0) {
-        const hasColor = selectedColors.some(c => card.color?.includes(c))
-        if (!hasColor) return false
-      }
-      if (selectedCardTypes.length > 0 && !selectedCardTypes.includes(card.card_type || '')) {
-        return false
-      }
-      if (selectedRarities.length > 0 && !selectedRarities.includes(card.rarity || '')) {
-        return false
-      }
-      if (normalizedQuery) {
-        const matchId = normalizeForSearch(card.id).includes(normalizedQuery)
-        const matchName = normalizeForSearch(card.name || '').includes(normalizedQuery)
+    return cards
+      .filter(card => {
+        if (selectedSeries.length > 0 && !selectedSeries.includes(card.series_id || '')) {
+          return false
+        }
+        if (selectedColors.length > 0) {
+          const hasColor = selectedColors.some(c => card.color?.includes(c))
+          if (!hasColor) return false
+        }
+        if (selectedCardTypes.length > 0 && !selectedCardTypes.includes(card.card_type || '')) {
+          return false
+        }
+        if (selectedRarities.length > 0 && !selectedRarities.includes(card.rarity || '')) {
+          return false
+        }
+        if (normalizedQuery) {
+          const matchId = normalizeForSearch(card.id).includes(normalizedQuery)
+          const matchName = normalizeForSearch(card.name || '').includes(normalizedQuery)
 
-        if (!matchId && !matchName) return false
-      }
-      return true
-    })
+          if (!matchId && !matchName) return false
+        }
+        return true
+      })
+      .sort(sortCards)
   }, [cards, selectedSeries, selectedColors, selectedCardTypes, selectedRarities, searchQuery])
 
   // deckをMapに変換してO(1)検索
   const deckMap = useMemo(() => {
     return new Map(deck.map(c => [c.id, c.count]))
+  }, [deck])
+
+  // ソート済みデッキ（コスト→名前→ID順、色ソートなし）
+  const sortedDeck = useMemo(() => {
+    return [...deck].sort(sortDeckCards)
   }, [deck])
 
   const hasActiveFilters = searchQuery || selectedSeries.length > 0 || selectedColors.length > 0 || selectedCardTypes.length > 0 || selectedRarities.length > 0
@@ -729,13 +737,34 @@ function App() {
     setVersionName('')
   }
 
+  const deckStructuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      createBreadcrumbStructuredData([
+        { name: 'ホーム', url: '/' },
+        { name: 'デッキ構築', url: '/deck' },
+      ]),
+      createHowToStructuredData(
+        'ワンピースカードのプロキシカードを作成する方法',
+        'デッキビルダーを使ってプロキシカードを作成し、PDF出力する手順',
+        [
+          { name: 'カードを検索', text: '名前、色、コストなどでカードを検索します' },
+          { name: 'デッキに追加', text: 'カードをクリックしてデッキに追加します（最大4枚）' },
+          { name: 'PDF出力', text: 'デッキが完成したらPDF出力ボタンでプロキシを生成' },
+          { name: '印刷', text: 'A4用紙に印刷してカードサイズにカットすれば完成' },
+        ]
+      ),
+    ],
+  }
+
   const deckPageHead = (
-    <Helmet>
-      <title>ワンピースカード プロキシ作成・デッキ構築 | OP-TCG base</title>
-      <meta name="description" content="ワンピースカードのプロキシ作成ツール。カードを選んでデッキを構築し、プロキシカードをPDF/画像で出力。印刷して練習に使えます。" />
-      <meta name="keywords" content="ワンピースカード, プロキシ, ONE PIECE, カードゲーム, デッキビルダー, プロキシカード, プロキシメーカー, OPTCG" />
-      <link rel="canonical" href="https://op-tcg-base.ludora-base.com/deck" />
-    </Helmet>
+    <SEOHead
+      title="ワンピースカード プロキシ作成・デッキ構築"
+      description="ワンピースカード(OPTCG)のプロキシ作成ツール。全カード対応、デッキを構築してPDF/画像で出力。A4印刷してすぐ練習できます。無料。"
+      canonicalPath="/deck"
+      keywords="ワンピースカード プロキシ, OPTCG デッキビルダー, ワンピースカード デッキ構築, プロキシカード 作成, ワンピースカード 印刷"
+      structuredData={deckStructuredData}
+    />
   )
 
   if (loading) {
@@ -1142,7 +1171,7 @@ function App() {
           )}
 
           <div className="deck-list">
-            {deck.map(card => (
+            {sortedDeck.map(card => (
               <div key={card.id} className="deck-card">
                 <img
                   src={`${API_BASE}${card.image}`}
@@ -1273,7 +1302,7 @@ function App() {
             )}
 
             <div className="pdf-card-list">
-              {deck.map(card => {
+              {sortedDeck.map(card => {
                 const selectedCount = pdfSelectedCards.get(card.id) || 0
                 return (
                   <div key={card.id} className="pdf-card-item">

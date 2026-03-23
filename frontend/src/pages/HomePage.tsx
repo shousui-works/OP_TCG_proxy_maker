@@ -1,19 +1,49 @@
 import { Link } from 'react-router-dom'
-import { Helmet } from 'react-helmet-async'
 import { useAuth } from '../contexts/AuthContext'
 import LoginButton from '../components/LoginButton'
+import Footer from '../components/Footer'
+import SEOHead, {
+  createWebAppStructuredData,
+  createFAQStructuredData,
+} from '../components/SEOHead'
 import './HomePage.css'
+
+const homeStructuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    createWebAppStructuredData(),
+    createFAQStructuredData([
+      {
+        question: 'ワンピースカードのプロキシとは何ですか？',
+        answer:
+          'プロキシカードとは、本物のカードの代わりに使用する練習用カードです。PDF出力して印刷することで、高価なカードを持っていなくてもデッキの練習ができます。',
+      },
+      {
+        question: 'このツールは無料で使えますか？',
+        answer:
+          'はい、完全無料でご利用いただけます。ログインすればデッキの保存や戦績管理も可能です。',
+      },
+      {
+        question: '最新のカードにも対応していますか？',
+        answer:
+          'はい、最新弾を含む全カードに対応しています。新弾発売後も随時更新されます。',
+      },
+    ]),
+  ],
+}
 
 export default function HomePage() {
   const { user } = useAuth()
 
   return (
     <div className="home-page">
-      <Helmet>
-        <title>ワンピースカード プロキシメーカー | OP-TCG base</title>
-        <meta name="description" content="ワンピースカードのプロキシ作成・デッキ構築ツール。カードを選んでプロキシカードをPDF出力、印刷して練習に使えます。" />
-        <link rel="canonical" href="https://op-tcg-base.ludora-base.com/" />
-      </Helmet>
+      <SEOHead
+        title="ワンピースカード プロキシメーカー・デッキ構築"
+        description="ワンピースカード(OPTCG)のプロキシ作成・デッキ構築・戦績管理ツール。全カード対応、PDF出力で印刷可能。無料で使えるオールインワンアプリ。"
+        canonicalPath="/"
+        keywords="ワンピースカード, プロキシ, OPTCG, デッキビルダー, ワンピースカードゲーム, プロキシメーカー, デッキ構築, 戦績管理, ONE PIECE"
+        structuredData={homeStructuredData}
+      />
       <header className="home-header">
         <h1>OP TCG Base</h1>
         <p className="home-subtitle">ワンピースカードゲームの練習・管理をサポート</p>
@@ -129,17 +159,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="home-footer">
-        <a
-          href="https://docs.google.com/forms/d/e/1FAIpQLSewyF2yFQQp4cCrJ8VJq273D5gUHj7jbTK4_R7YMNLJwWn8HQ/viewform"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="contact-link"
-        >
-          お問い合わせ
-        </a>
-        <Link to="/admin" className="admin-link">Admin</Link>
-      </footer>
+      <Footer />
     </div>
   )
 }

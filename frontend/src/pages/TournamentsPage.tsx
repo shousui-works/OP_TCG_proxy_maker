@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { Helmet } from 'react-helmet-async'
 import { useAuth } from '../contexts/AuthContext'
+import SEOHead, { createBreadcrumbStructuredData } from '../components/SEOHead'
 import { useTournaments } from '../hooks/useTournaments'
 import { useMatches } from '../hooks/useMatches'
 import { useFirestoreDeck } from '../hooks/useFirestoreDeck'
@@ -175,12 +175,32 @@ export function TournamentsPage() {
     return tournament?.type === 'freeplay'
   }
 
+  const tournamentsStructuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      createBreadcrumbStructuredData([
+        { name: 'ホーム', url: '/' },
+        { name: '戦績管理', url: '/tournaments' },
+      ]),
+      {
+        '@type': 'SoftwareApplication',
+        name: 'ワンピースカード 戦績管理ツール',
+        description: 'ONE PIECEカードゲームの大会・試合結果を記録し、勝率を自動集計',
+        applicationCategory: 'GameApplication',
+        operatingSystem: 'Web',
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'JPY' },
+      },
+    ],
+  }
+
   const pageHead = (
-    <Helmet>
-      <title>戦績管理 | OP-TCG base</title>
-      <meta name="description" content="ONE PIECEカードゲームの大会戦績を記録・管理。勝率やリーダー別統計を確認。" />
-      <link rel="canonical" href="https://op-tcg-base.ludora-base.com/tournaments" />
-    </Helmet>
+    <SEOHead
+      title="ワンピースカード 戦績管理・勝率記録"
+      description="ワンピースカード(OPTCG)の大会・フリー対戦の戦績を記録。リーダー別勝率、相手デッキ別の成績を自動集計。無料で使える戦績管理ツール。"
+      canonicalPath="/tournaments"
+      keywords="ワンピースカード 戦績, OPTCG 勝率, ワンピースカード 大会記録, デッキ 勝率管理, ワンピースカードゲーム 成績"
+      structuredData={tournamentsStructuredData}
+    />
   )
 
   // Show message if Firebase is disabled

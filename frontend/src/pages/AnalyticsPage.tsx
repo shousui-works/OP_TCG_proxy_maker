@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Helmet } from 'react-helmet-async'
+import SEOHead, { createBreadcrumbStructuredData } from '../components/SEOHead'
 import {
   LineChart,
   Line,
@@ -157,15 +157,20 @@ export function AnalyticsPage() {
     return `${wins}勝${losses}敗`
   }
 
+  const analyticsStructuredData = createBreadcrumbStructuredData([
+    { name: 'ホーム', url: '/' },
+    { name: '戦績管理', url: '/tournaments' },
+    { name: 'アナリティクス', url: '/analytics' },
+  ])
+
   const pageHead = (
-    <Helmet>
-      <title>アナリティクス | OP-TCG base</title>
-      <meta
-        name="description"
-        content="ONE PIECEカードゲームの戦績を詳細分析。リーダー別成績、苦手な相手、日別推移を確認。"
-      />
-      <link rel="canonical" href="https://op-tcg-base.ludora-base.com/analytics" />
-    </Helmet>
+    <SEOHead
+      title="ワンピースカード 戦績分析・アナリティクス"
+      description="ワンピースカード(OPTCG)の戦績を詳細分析。リーダー別勝率、苦手な相手リーダー、日別の成績推移をグラフで可視化。デッキ改善に役立つ無料分析ツール。"
+      canonicalPath="/analytics"
+      keywords="ワンピースカード 分析, OPTCG アナリティクス, デッキ勝率分析, 苦手デッキ対策, ワンピースカード 統計"
+      structuredData={analyticsStructuredData}
+    />
   )
 
   // Firebase無効時
