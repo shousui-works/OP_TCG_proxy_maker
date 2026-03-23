@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import LoginButton from '../components/LoginButton'
 import Footer from '../components/Footer'
+import PageNav from '../components/PageNav'
 import SEOHead, {
   createWebAppStructuredData,
   createFAQStructuredData,
@@ -44,6 +45,8 @@ export default function HomePage() {
         keywords="ワンピースカード, プロキシ, OPTCG, デッキビルダー, ワンピースカードゲーム, プロキシメーカー, デッキ構築, 戦績管理, ONE PIECE"
         structuredData={homeStructuredData}
       />
+      <PageNav />
+
       <header className="home-header">
         <h1>OP TCG Base</h1>
         <p className="home-subtitle">ワンピースカードゲームの練習・管理をサポート</p>

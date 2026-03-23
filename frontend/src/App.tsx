@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import './App.css'
 import SEOHead, { createHowToStructuredData, createBreadcrumbStructuredData } from './components/SEOHead'
+import PageNav from './components/PageNav'
 import { exportDeckToPDF } from './utils/pdfExport'
 import { exportDeckToImage } from './utils/deckImageExport'
 import { normalizeForSearch } from './utils/textNormalize'
@@ -828,9 +829,7 @@ function App() {
             <Link to="/" className="home-link">
               <h1>OP-TCG base</h1>
             </Link>
-            <nav className="header-nav">
-              <Link to="/tournaments" className="nav-link">大会管理</Link>
-            </nav>
+            <PageNav />
           </div>
           <div className="deck-controls">
             <div className="current-deck">

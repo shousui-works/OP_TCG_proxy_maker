@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import SEOHead, { createBreadcrumbStructuredData } from '../components/SEOHead'
+import PageNav from '../components/PageNav'
 import { useTournaments } from '../hooks/useTournaments'
 import { useMatches } from '../hooks/useMatches'
 import { useFirestoreDeck } from '../hooks/useFirestoreDeck'
@@ -21,7 +21,6 @@ import type {
 import './TournamentsPage.css'
 
 export function TournamentsPage() {
-  const navigate = useNavigate()
   const { user, isFirebaseEnabled } = useAuth()
   const { fetchTournaments, createTournament, updateTournament, deleteTournament } =
     useTournaments()
@@ -208,10 +207,8 @@ export function TournamentsPage() {
     return (
       <div className="tournaments-page">
         {pageHead}
+        <PageNav />
         <header className="tournaments-header">
-          <button className="back-button" onClick={() => navigate('/')}>
-            ← 戻る
-          </button>
           <h1>戦績管理</h1>
         </header>
         <div className="login-prompt">
@@ -226,10 +223,8 @@ export function TournamentsPage() {
     return (
       <div className="tournaments-page">
         {pageHead}
+        <PageNav />
         <header className="tournaments-header">
-          <button className="back-button" onClick={() => navigate('/')}>
-            ← 戻る
-          </button>
           <h1>戦績管理</h1>
         </header>
         <div className="login-prompt">
@@ -243,15 +238,10 @@ export function TournamentsPage() {
   return (
     <div className="tournaments-page">
       {pageHead}
+      <PageNav />
       <header className="tournaments-header">
-        <button className="back-button" onClick={() => navigate('/')}>
-          ← 戻る
-        </button>
         <h1>戦績管理</h1>
         <div className="header-actions">
-          <Link to="/analytics" className="analytics-link">
-            分析
-          </Link>
           <button className="add-tournament-button" onClick={handleAddTournament}>
             + 追加
           </button>

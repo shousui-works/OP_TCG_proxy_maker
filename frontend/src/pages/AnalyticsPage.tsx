@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import SEOHead, { createBreadcrumbStructuredData } from '../components/SEOHead'
+import PageNav from '../components/PageNav'
 import {
   LineChart,
   Line,
@@ -178,10 +179,8 @@ export function AnalyticsPage() {
     return (
       <div className="analytics-page">
         {pageHead}
+        <PageNav />
         <header className="analytics-header">
-          <button className="back-button" onClick={() => navigate('/')}>
-            ← 戻る
-          </button>
           <h1>アナリティクス</h1>
         </header>
         <div className="login-prompt">
@@ -196,10 +195,8 @@ export function AnalyticsPage() {
     return (
       <div className="analytics-page">
         {pageHead}
+        <PageNav />
         <header className="analytics-header">
-          <button className="back-button" onClick={() => navigate('/')}>
-            ← 戻る
-          </button>
           <h1>アナリティクス</h1>
         </header>
         <div className="login-prompt">
@@ -213,10 +210,8 @@ export function AnalyticsPage() {
   return (
     <div className="analytics-page">
       {pageHead}
+      <PageNav />
       <header className="analytics-header">
-        <button className="back-button" onClick={() => navigate('/')}>
-          ← 戻る
-        </button>
         <h1>アナリティクス</h1>
       </header>
 
