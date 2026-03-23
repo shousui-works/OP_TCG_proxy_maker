@@ -2,8 +2,14 @@ import type { TournamentWithMatches, Match } from '../../types'
 import { TOURNAMENT_TYPE_LABELS } from '../../types'
 import { resolveCardImage } from '../../utils/cardImage'
 import { shareTournamentResult } from '../../utils/tweetGenerator'
+import { downloadDeckImage } from '../../utils/deckImageDownload'
 import { MatchList } from './MatchList'
 import './TournamentCard.css'
+
+interface DeckData {
+  deck: { id: string; name: string; image: string; count: number }[]
+  leader: { id: string; name: string; image: string } | null
+}
 
 interface TournamentCardProps {
   tournament: TournamentWithMatches
@@ -14,6 +20,8 @@ interface TournamentCardProps {
   onAddMatch: () => void
   onEditMatch: (match: Match) => void
   onDeleteMatch: (matchId: string) => void
+  getVersion?: (branchName: string, versionId: string) => Promise<DeckData | null>
+  getDeck?: (branchName: string) => Promise<DeckData>
 }
 
 export function TournamentCard({
@@ -25,7 +33,25 @@ export function TournamentCard({
   onAddMatch,
   onEditMatch,
   onDeleteMatch,
+  getVersion,
+  getDeck,
 }: TournamentCardProps) {
+  // デッキ画像ダウンロードが可能かどうか
+  const canDownloadDeckImage = tournament.myDeckId && (getVersion || getDeck)
+
+  const handleTweet = async () => {
+    // デッキ画像をダウンロード（可能な場合）
+    if (canDownloadDeckImage && tournament.myDeckId) {
+      await downloadDeckImage({
+        branchName: tournament.myDeckId,
+        versionRef: tournament.myDeckVersion,
+        getVersion,
+        getDeck,
+      })
+    }
+    // ツイート画面を開く
+    shareTournamentResult(tournament)
+  }
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('ja-JP', {
       month: 'numeric',
@@ -70,7 +96,7 @@ export function TournamentCard({
                   </span>
                 )}
               </span>
-            </div>
+                          </div>
           )}
         </div>
 
@@ -90,7 +116,7 @@ export function TournamentCard({
             </button>
             <button
               className="action-button tweet"
-              onClick={() => shareTournamentResult(tournament)}
+              onClick={handleTweet}
               title="結果をツイート"
             >
               𝕏

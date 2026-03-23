@@ -4,6 +4,7 @@ import { Helmet } from 'react-helmet-async'
 import { useAuth } from '../contexts/AuthContext'
 import { useTournaments } from '../hooks/useTournaments'
 import { useMatches } from '../hooks/useMatches'
+import { useFirestoreDeck } from '../hooks/useFirestoreDeck'
 import { TournamentCard } from '../components/tournaments/TournamentCard'
 import { TournamentModal } from '../components/tournaments/TournamentModal'
 import { MatchModal } from '../components/tournaments/MatchModal'
@@ -25,6 +26,7 @@ export function TournamentsPage() {
   const { fetchTournaments, createTournament, updateTournament, deleteTournament } =
     useTournaments()
   const { createMatch, updateMatch, deleteMatch } = useMatches()
+  const { getVersion, getDeck } = useFirestoreDeck()
 
   const [tournaments, setTournaments] = useState<TournamentWithMatches[]>([])
   const [loading, setLoading] = useState(true)
@@ -266,6 +268,8 @@ export function TournamentsPage() {
                   onAddMatch={() => handleAddMatch(tournament.id)}
                   onEditMatch={(match) => handleEditMatch(tournament.id, match)}
                   onDeleteMatch={(matchId) => handleDeleteMatch(tournament.id, matchId)}
+                  getVersion={getVersion}
+                  getDeck={getDeck}
                 />
               ))
             )}

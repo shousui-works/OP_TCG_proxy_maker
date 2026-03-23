@@ -1,15 +1,25 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import type { LeaderCard, Card } from '../../types'
+import type { LeaderCard } from '../../types'
 import { resolveCardImage } from '../../utils/cardImage'
 import { normalizeForSearch } from '../../utils/textNormalize'
+import leadersData from '../../data/leaders.json'
 import './LeaderPicker.css'
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 const MIN_SEARCH_LENGTH = 1
 
 interface LeaderPickerProps {
   onSelect: (leader: LeaderCard) => void
   onClose: () => void
+}
+
+interface LeaderData {
+  id: string
+  name: string
+  color: string | null
+  life: string | null
+  power: string | null
+  attribute: string | null
+  feature: string | null
 }
 
 const COLOR_OPTIONS = [
@@ -22,10 +32,10 @@ const COLOR_OPTIONS = [
   { value: '黄', label: '黄' },
 ]
 
+// 静的データ（色→パワー→名前→ID順でソート済み）
+const leaders: LeaderData[] = leadersData as LeaderData[]
+
 export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
-  const [allCards, setAllCards] = useState<Card[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [colorFilter, setColorFilter] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -34,31 +44,6 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
   useEffect(() => {
     searchInputRef.current?.focus()
   }, [])
-
-  useEffect(() => {
-    async function fetchCards() {
-      try {
-        setError(null)
-        const res = await fetch(`${API_BASE}/api/cards/data`)
-        if (!res.ok) throw new Error('Failed to fetch cards')
-        const data = await res.json()
-        // data.cardsはオブジェクト形式（{cardId: cardData}）なので配列に変換
-        const cardsObj = data.cards || {}
-        const cardsArray = Object.values(cardsObj) as Card[]
-        setAllCards(cardsArray)
-      } catch (err) {
-        console.error('Failed to fetch cards:', err)
-        setError('カードデータの読み込みに失敗しました')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchCards()
-  }, [])
-
-  const leaders = useMemo(() => {
-    return allCards.filter((card) => card.card_type === 'LEADER')
-  }, [allCards])
 
   // 検索または色フィルターがあるかどうか
   const hasSearchQuery = search.length >= MIN_SEARCH_LENGTH || colorFilter !== ''
@@ -88,15 +73,14 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
 
       return true
     })
-  }, [leaders, search, colorFilter, hasSearchQuery])
+  }, [search, colorFilter, hasSearchQuery])
 
-  const handleSelect = (card: Card) => {
+  const handleSelect = (leader: LeaderData) => {
     onSelect({
-      id: card.id,
-      name: card.name,
-      image: resolveCardImage(card.image_url || card.image, card.id),
-      color: card.color,
-      series_id: card.series_id,
+      id: leader.id,
+      name: leader.name,
+      image: resolveCardImage(undefined, leader.id),
+      color: leader.color ?? undefined,
     })
   }
 
@@ -133,11 +117,7 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
         </div>
 
         <div className="picker-content">
-          {loading ? (
-            <div className="picker-loading">読み込み中...</div>
-          ) : error ? (
-            <div className="picker-error">{error}</div>
-          ) : !hasSearchQuery ? (
+          {!hasSearchQuery ? (
             <div className="picker-hint">
               <p>リーダー名または色で検索してください</p>
               <p className="picker-hint-sub">例: ルフィ、ロー、シャンクス</p>
@@ -147,7 +127,7 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
           ) : (
             <div className="leader-grid">
               {filteredLeaders.map((leader) => {
-                const imageUrl = resolveCardImage(leader.image_url || leader.image, leader.id)
+                const imageUrl = resolveCardImage(undefined, leader.id)
                 return (
                   <button
                     key={leader.id}
@@ -155,7 +135,7 @@ export function LeaderPicker({ onSelect, onClose }: LeaderPickerProps) {
                     onClick={() => handleSelect(leader)}
                     title={leader.name}
                   >
-                    <img src={imageUrl} alt={leader.name} />
+                    <img src={imageUrl} alt={leader.name} loading="lazy" />
                     <span className="leader-name">{leader.name}</span>
                   </button>
                 )
