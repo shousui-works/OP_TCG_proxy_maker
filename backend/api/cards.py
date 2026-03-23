@@ -95,16 +95,24 @@ def get_card_image_by_series(series_id: str, card_id: str):
 
 @router.get("/cards/{card_id}/image")
 def get_card_image(card_id: str):
-    """Get card image by ID (legacy format)"""
+    """Get card image by ID (looks up series from card data)"""
     validate_path_component(card_id, "card_id")
+
+    # Look up series_id from card data
+    card_details = _get_card_details()
+    card_info = card_details.get(card_id)
+    series_id = card_info.get("series_id") if card_info else None
 
     # Redirect to GCS if available
     if GCSService.is_available() and settings.GCS_PUBLIC_URL:
-        gcs_url = f"{settings.GCS_PUBLIC_URL}/{card_id}.png"
+        if series_id:
+            gcs_url = f"{settings.GCS_PUBLIC_URL}/{series_id}/{card_id}.png"
+        else:
+            gcs_url = f"{settings.GCS_PUBLIC_URL}/{card_id}.png"
         return RedirectResponse(url=gcs_url, status_code=302)
 
     # Serve from local filesystem
-    img_path = CardService.get_card_path(None, card_id)
+    img_path = CardService.get_card_path(series_id, card_id)
 
     if not CardService.validate_card_path(img_path):
         raise HTTPException(status_code=400, detail="Invalid path")
