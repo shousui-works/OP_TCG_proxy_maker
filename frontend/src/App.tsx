@@ -7,6 +7,7 @@ import { exportDeckToPDF } from './utils/pdfExport'
 import { exportDeckToImage } from './utils/deckImageExport'
 import { normalizeForSearch } from './utils/textNormalize'
 import { sortCards, sortDeckCards } from './utils/cardSort'
+import { getCardImageUrlWithSeries, getCardImageUrl } from './utils/cardImage'
 import { useAuth } from './contexts/AuthContext'
 import { useFirestoreDeck } from './hooks/useFirestoreDeck'
 import { useResponsive } from './hooks/useResponsive'
@@ -16,6 +17,7 @@ import HamburgerMenu from './components/HamburgerMenu'
 import BottomNavigation, { type TabType } from './components/BottomNavigation'
 import FilterPanel from './components/FilterPanel'
 import VirtualCardGrid from './components/VirtualCardGrid'
+import VirtualDeckList from './components/VirtualDeckList'
 import DeckImportExportModal from './components/DeckImportExportModal'
 import CardGridSkeleton from './components/CardGridSkeleton'
 import Toast from './components/Toast'
@@ -1050,7 +1052,6 @@ function App() {
 
           <VirtualCardGrid
             cards={filteredCards}
-            apiBase={API_BASE}
             isMobile={isMobile}
             enableHoverZoom={enableHoverZoom}
             maxCopies={MAX_COPIES}
@@ -1169,29 +1170,12 @@ function App() {
             <div className="deck-complete">デッキ完成!</div>
           )}
 
-          <div className="deck-list">
-            {sortedDeck.map(card => (
-              <div key={card.id} className="deck-card">
-                <img
-                  src={`${API_BASE}${card.image}`}
-                  alt={card.name}
-                />
-                <div className="deck-card-info">
-                  <span className="deck-card-name">{card.name}</span>
-                  <div className="deck-card-controls">
-                    <button onClick={() => removeFromDeck(card.id)}>-</button>
-                    <span>{card.count}</span>
-                    <button
-                      onClick={() => addToDeck(card)}
-                      disabled={card.count >= MAX_COPIES}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          <VirtualDeckList
+            cards={sortedDeck}
+            maxCopies={MAX_COPIES}
+            onAddCard={addToDeck}
+            onRemoveCard={removeFromDeck}
+          />
         </aside>
       </div>
 
@@ -1357,7 +1341,7 @@ function App() {
           }}
         >
           <img
-            src={`${API_BASE}${hoverCard.card.image}`}
+            src={hoverCard.card.series_id ? getCardImageUrlWithSeries(hoverCard.card.series_id, hoverCard.card.id) : getCardImageUrl(hoverCard.card.id)}
             alt={hoverCard.card.name}
             style={{
               width: '300px',
