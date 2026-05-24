@@ -8,6 +8,12 @@
   justify-content: center;
 }
 
+.home-page > .page-nav-container {
+  width: 100%;
+  padding: 0;
+  margin-bottom: 2rem;
+}
+
 .home-header {
   text-align: center;
   margin-bottom: 3rem;

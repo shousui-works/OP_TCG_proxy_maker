@@ -1,5 +1,5 @@
 import type { Match } from '../../types'
-import { MATCH_RESULT_LABELS } from '../../types'
+import { MATCH_RESULT_LABELS, GO_FIRST_LABELS } from '../../types'
 import { resolveCardImage } from '../../utils/cardImage'
 import './MatchList.css'
 
@@ -50,6 +50,11 @@ export function MatchList({
               <span className={`match-result ${getResultClass(match.result)}`}>
                 {MATCH_RESULT_LABELS[match.result]}
               </span>
+              {match.goFirst && (
+                <span className={`go-first-badge ${match.goFirst}`}>
+                  {GO_FIRST_LABELS[match.goFirst]}
+                </span>
+              )}
               {isFreeplay && match.myLeader && (
                 <div className="my-leader">
                   <img

@@ -1,9 +1,15 @@
 .page-nav {
   display: flex;
+  justify-content: center;
   gap: 0.25rem;
   background: var(--bg-secondary, #16213e);
   padding: 0.5rem;
   border-radius: 8px;
+}
+
+/* Container for PageNav */
+.page-nav-container {
+  padding: 1rem;
 }
 
 .nav-item {
