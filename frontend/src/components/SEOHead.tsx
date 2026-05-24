@@ -55,6 +55,7 @@ export default function SEOHead({
 }
 
 // 構造化データのヘルパー関数
+// eslint-disable-next-line react-refresh/only-export-components
 export function createWebAppStructuredData() {
   return {
     '@context': 'https://schema.org',
@@ -72,6 +73,7 @@ export function createWebAppStructuredData() {
   }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function createBreadcrumbStructuredData(
   items: Array<{ name: string; url: string }>
 ) {
@@ -87,6 +89,7 @@ export function createBreadcrumbStructuredData(
   }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function createFAQStructuredData(
   faqs: Array<{ question: string; answer: string }>
 ) {
@@ -104,6 +107,7 @@ export function createFAQStructuredData(
   }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function createHowToStructuredData(
   name: string,
   description: string,

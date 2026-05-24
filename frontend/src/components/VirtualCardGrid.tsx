@@ -1,17 +1,18 @@
 import { useRef, useMemo, useState, useEffect, useCallback } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { getCardThumbnailUrl } from '../utils/cardImage'
 import './VirtualCardGrid.css'
 
 interface Card {
   id: string
   name: string
   image: string
+  series_id?: string
   card_type?: string
 }
 
 interface VirtualCardGridProps {
   cards: Card[]
-  apiBase: string
   isMobile: boolean
   enableHoverZoom: boolean
   maxCopies: number
@@ -21,9 +22,10 @@ interface VirtualCardGridProps {
   onHoverCard: (card: Card | null, x: number, y: number) => void
 }
 
+const CARDS_PER_PAGE = 100
+
 export default function VirtualCardGrid({
   cards,
-  apiBase,
   isMobile,
   enableHoverZoom,
   maxCopies,
@@ -34,6 +36,21 @@ export default function VirtualCardGrid({
 }: VirtualCardGridProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const [containerWidth, setContainerWidth] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // ページ計算
+  const totalPages = Math.ceil(cards.length / CARDS_PER_PAGE)
+
+  // カード配列が変わったらページをリセット
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [cards.length])
+
+  // 現在のページのカードのみ取得
+  const paginatedCards = useMemo(() => {
+    const start = (currentPage - 1) * CARDS_PER_PAGE
+    return cards.slice(start, start + CARDS_PER_PAGE)
+  }, [cards, currentPage])
 
   // Observe container width changes
   useEffect(() => {
@@ -90,14 +107,14 @@ export default function VirtualCardGrid({
 
   const gap = 8
 
-  // Group cards into rows
+  // Group cards into rows (using paginated cards)
   const rows = useMemo(() => {
     const result: Card[][] = []
-    for (let i = 0; i < cards.length; i += columnCount) {
-      result.push(cards.slice(i, i + columnCount))
+    for (let i = 0; i < paginatedCards.length; i += columnCount) {
+      result.push(paginatedCards.slice(i, i + columnCount))
     }
     return result
-  }, [cards, columnCount])
+  }, [paginatedCards, columnCount])
 
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -111,15 +128,48 @@ export default function VirtualCardGrid({
     rowVirtualizer.measure()
   }, [cardHeight, rowVirtualizer])
 
+  // ページ変更時にスクロールをトップに戻す
+  const handlePageChange = useCallback((page: number) => {
+    setCurrentPage(page)
+    if (parentRef.current) {
+      parentRef.current.scrollTop = 0
+    }
+  }, [])
+
   return (
-    <div ref={parentRef} className="virtual-card-grid-container">
-      <div
-        className="virtual-card-grid"
-        style={{
-          height: `${rowVirtualizer.getTotalSize()}px`,
-          position: 'relative',
-        }}
-      >
+    <div className="virtual-card-grid-wrapper">
+      {/* ページネーション（上部） */}
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button
+            className="pagination-btn"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            &lt;
+          </button>
+          <span className="pagination-info">
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            className="pagination-btn"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            &gt;
+          </button>
+          <span className="pagination-total">({cards.length}枚)</span>
+        </div>
+      )}
+
+      <div ref={parentRef} className="virtual-card-grid-container">
+        <div
+          className="virtual-card-grid"
+          style={{
+            height: `${rowVirtualizer.getTotalSize()}px`,
+            position: 'relative',
+          }}
+        >
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const rowCards = rows[virtualRow.index]
           return (
@@ -177,7 +227,7 @@ export default function VirtualCardGrid({
                     onMouseLeave={() => enableHoverZoom && onHoverCard(null, 0, 0)}
                   >
                     <img
-                      src={`${apiBase}${card.image}`}
+                      src={getCardThumbnailUrl(card.id, 'sm', card.series_id)}
                       alt={card.name}
                       loading="lazy"
                     />
@@ -212,6 +262,7 @@ export default function VirtualCardGrid({
             </div>
           )
         })}
+        </div>
       </div>
     </div>
   )

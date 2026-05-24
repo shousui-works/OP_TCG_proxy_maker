@@ -210,8 +210,9 @@ __marimo__/
 
 # Project specific
 cards/
-data/
+/data/
 cache/
+!frontend/src/data/
 
 # Terraform
 terraform/.terraform/
