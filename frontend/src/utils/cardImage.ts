@@ -82,6 +82,7 @@ export function resolveCardImage(_image: string | undefined, cardId: string, ser
  * カードIDからサムネイル画像URLを生成
  * 現状はフルサイズ画像と同じURLを返す
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function getCardThumbnailUrl(cardId: string, _size: ThumbnailSize = 'sm', seriesId?: string): string {
   if (seriesId) {
     return getCardImageUrlWithSeries(seriesId, cardId)
