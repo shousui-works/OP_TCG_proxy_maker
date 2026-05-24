@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useFirestoreDeck, type DeckVersionInfo } from '../../hooks/useFirestoreDeck'
 import { LeaderPicker } from './LeaderPicker'
-import type { Match, MatchResult, LeaderCard, DeckVersionRef } from '../../types'
-import { MATCH_RESULT_LABELS } from '../../types'
+import type { Match, MatchResult, LeaderCard, DeckVersionRef, GoFirst } from '../../types'
+import { MATCH_RESULT_LABELS, GO_FIRST_LABELS } from '../../types'
 import { resolveCardImage } from '../../utils/cardImage'
 import './MatchModal.css'
 
@@ -13,6 +13,7 @@ interface MatchModalProps {
     result: MatchResult
     opponentLeader?: LeaderCard | null
     memo?: string
+    goFirst?: GoFirst
     myDeckId?: string | null
     myDeckVersion?: DeckVersionRef | null
     myLeader?: LeaderCard | null
@@ -27,6 +28,7 @@ export function MatchModal({ match, isFreeplay = false, onSave, onClose }: Match
   const [opponentLeader, setOpponentLeader] = useState<LeaderCard | null>(
     match?.opponentLeader || null
   )
+  const [goFirst, setGoFirst] = useState<GoFirst>(match?.goFirst || null)
   const [memo, setMemo] = useState(match?.memo || '')
   const [showLeaderPicker, setShowLeaderPicker] = useState(false)
   const [leaderPickerTarget, setLeaderPickerTarget] = useState<'opponent' | 'my'>('opponent')
@@ -151,6 +153,7 @@ export function MatchModal({ match, isFreeplay = false, onSave, onClose }: Match
           result,
           opponentLeader: opponentLeader || undefined,
           memo: memo.trim() || undefined,
+          goFirst,
           ...(isFreeplay && {
             myDeckId: selectedDeckName || null,
             myDeckVersion: selectedVersion,
@@ -287,6 +290,25 @@ export function MatchModal({ match, isFreeplay = false, onSave, onClose }: Match
               )}
             </div>
           )}
+
+          <div className="form-group">
+            <label>先手/後手</label>
+            <div className="go-first-buttons">
+              {(Object.entries(GO_FIRST_LABELS) as ['first' | 'second', string][]).map(
+                ([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`go-first-button ${value} ${goFirst === value ? 'selected' : ''}`}
+                    onClick={() => setGoFirst(goFirst === value ? null : value)}
+                    aria-pressed={goFirst === value}
+                  >
+                    {label}
+                  </button>
+                )
+              )}
+            </div>
+          </div>
 
           <div className="form-group">
             <label>相手リーダー</label>

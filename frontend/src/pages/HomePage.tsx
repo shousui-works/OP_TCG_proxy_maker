@@ -45,7 +45,7 @@ export default function HomePage() {
         keywords="ワンピースカード, プロキシ, OPTCG, デッキビルダー, ワンピースカードゲーム, プロキシメーカー, デッキ構築, 戦績管理, ONE PIECE"
         structuredData={homeStructuredData}
       />
-      <PageNav />
+      <div className="page-nav-container"><PageNav /></div>
 
       <header className="home-header">
         <h1>OP TCG Base</h1>

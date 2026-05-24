@@ -25,6 +25,7 @@ import {
   calculateMatchupsForLeader,
   calculateDailyStatsChronological,
   formatDisplayDate,
+  calculateGoFirstStats,
 } from '../utils/analyticsCalculator'
 import type { TournamentWithMatches, LeaderCard } from '../types'
 import LoginButton from '../components/LoginButton'
@@ -94,6 +95,7 @@ export function AnalyticsPage() {
     () => calculateDailyStatsChronological(filteredTournaments),
     [filteredTournaments]
   )
+  const goFirstStats = useMemo(() => calculateGoFirstStats(filteredTournaments), [filteredTournaments])
 
   // 選択したリーダーの相性分析（フィルタリング済みデータを使用）
   const selectedLeaderMatchups = useMemo(() => {
@@ -179,7 +181,7 @@ export function AnalyticsPage() {
     return (
       <div className="analytics-page">
         {pageHead}
-        <PageNav />
+        <div className="page-nav-container"><PageNav /></div>
         <header className="analytics-header">
           <h1>アナリティクス</h1>
         </header>
@@ -195,7 +197,7 @@ export function AnalyticsPage() {
     return (
       <div className="analytics-page">
         {pageHead}
-        <PageNav />
+        <div className="page-nav-container"><PageNav /></div>
         <header className="analytics-header">
           <h1>アナリティクス</h1>
         </header>
@@ -210,7 +212,7 @@ export function AnalyticsPage() {
   return (
     <div className="analytics-page">
       {pageHead}
-      <PageNav />
+      <div className="page-nav-container"><PageNav /></div>
       <header className="analytics-header">
         <h1>アナリティクス</h1>
       </header>
@@ -288,6 +290,37 @@ export function AnalyticsPage() {
                   <div className="summary-value loss">{overallStats.lossStreak}</div>
                 </div>
               </div>
+
+              {/* 先手後手勝率 */}
+              {(goFirstStats.first.total > 0 || goFirstStats.second.total > 0) && (
+                <div className="go-first-stats">
+                  <h3>先手/後手 勝率</h3>
+                  <div className="go-first-grid">
+                    <div className="go-first-card first">
+                      <div className="go-first-label">先手</div>
+                      <div className="go-first-winrate">
+                        {goFirstStats.first.total > 0 ? `${goFirstStats.first.winRate.toFixed(1)}%` : '-'}
+                      </div>
+                      <div className="go-first-record">
+                        {goFirstStats.first.total > 0
+                          ? formatRecord(goFirstStats.first.wins, goFirstStats.first.losses, goFirstStats.first.draws)
+                          : 'データなし'}
+                      </div>
+                    </div>
+                    <div className="go-first-card second">
+                      <div className="go-first-label">後手</div>
+                      <div className="go-first-winrate">
+                        {goFirstStats.second.total > 0 ? `${goFirstStats.second.winRate.toFixed(1)}%` : '-'}
+                      </div>
+                      <div className="go-first-record">
+                        {goFirstStats.second.total > 0
+                          ? formatRecord(goFirstStats.second.wins, goFirstStats.second.losses, goFirstStats.second.draws)
+                          : 'データなし'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* 勝率推移グラフ */}
@@ -452,77 +485,75 @@ export function AnalyticsPage() {
                 </div>
 
                 {selectedLeaderMatchups.length > 0 ? (
-                  <div className="matchup-grid">
-                    <div className="matchup-column">
-                      <h3 className="matchup-column-title good">得意な相手</h3>
-                      <div className="matchup-list">
-                        {selectedLeaderMatchups
-                          .filter((m) => m.winRate >= 50)
-                          .sort((a, b) => b.winRate - a.winRate)
-                          .slice(0, 5)
-                          .map((matchup) => (
-                            <div key={matchup.opponentLeader.id} className="matchup-item good">
+                  <div className="matchup-table-container">
+                    <table className="matchup-table">
+                      <thead>
+                        <tr>
+                          <th className="matchup-th-opponent">相手リーダー</th>
+                          <th className="matchup-th-total">全体</th>
+                          <th className="matchup-th-first">先手</th>
+                          <th className="matchup-th-second">後手</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedLeaderMatchups.map((matchup) => (
+                          <tr key={matchup.opponentLeader.id} className="matchup-row">
+                            <td className="matchup-td-opponent">
                               <img
                                 src={resolveCardImage(
                                   matchup.opponentLeader.image,
                                   matchup.opponentLeader.id
                                 )}
                                 alt={matchup.opponentLeader.name}
-                                className="matchup-opponent-img"
+                                className="matchup-table-img"
                               />
-                              <div className="matchup-opponent-info">
-                                <div className="matchup-opponent-name">
-                                  {matchup.opponentLeader.name}
-                                </div>
-                                <div className="matchup-opponent-record">
-                                  {formatRecord(matchup.wins, matchup.losses, matchup.draws)}
-                                </div>
-                              </div>
-                              <div className="matchup-winrate good">
+                              <span className="matchup-table-name">
+                                {matchup.opponentLeader.name}
+                              </span>
+                            </td>
+                            <td className="matchup-td-stats">
+                              <span className={`matchup-rate ${matchup.winRate >= 50 ? 'good' : 'bad'}`}>
                                 {matchup.winRate.toFixed(0)}%
-                              </div>
-                            </div>
-                          ))}
-                        {selectedLeaderMatchups.filter((m) => m.winRate >= 50).length === 0 && (
-                          <p className="no-matchup">データなし</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="matchup-column">
-                      <h3 className="matchup-column-title bad">苦手な相手</h3>
-                      <div className="matchup-list">
-                        {selectedLeaderMatchups
-                          .filter((m) => m.winRate < 50)
-                          .sort((a, b) => a.winRate - b.winRate)
-                          .slice(0, 5)
-                          .map((matchup) => (
-                            <div key={matchup.opponentLeader.id} className="matchup-item bad">
-                              <img
-                                src={resolveCardImage(
-                                  matchup.opponentLeader.image,
-                                  matchup.opponentLeader.id
-                                )}
-                                alt={matchup.opponentLeader.name}
-                                className="matchup-opponent-img"
-                              />
-                              <div className="matchup-opponent-info">
-                                <div className="matchup-opponent-name">
-                                  {matchup.opponentLeader.name}
-                                </div>
-                                <div className="matchup-opponent-record">
-                                  {formatRecord(matchup.wins, matchup.losses, matchup.draws)}
-                                </div>
-                              </div>
-                              <div className="matchup-winrate bad">
-                                {matchup.winRate.toFixed(0)}%
-                              </div>
-                            </div>
-                          ))}
-                        {selectedLeaderMatchups.filter((m) => m.winRate < 50).length === 0 && (
-                          <p className="no-matchup">データなし</p>
-                        )}
-                      </div>
-                    </div>
+                              </span>
+                              <span className="matchup-record">
+                                {matchup.wins}-{matchup.losses}
+                                {matchup.draws > 0 && `-${matchup.draws}`}
+                              </span>
+                            </td>
+                            <td className="matchup-td-stats">
+                              {matchup.goFirst.first.total > 0 ? (
+                                <>
+                                  <span className={`matchup-rate ${matchup.goFirst.first.winRate >= 50 ? 'good' : 'bad'}`}>
+                                    {matchup.goFirst.first.winRate.toFixed(0)}%
+                                  </span>
+                                  <span className="matchup-record">
+                                    {matchup.goFirst.first.wins}-{matchup.goFirst.first.losses}
+                                    {matchup.goFirst.first.draws > 0 && `-${matchup.goFirst.first.draws}`}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="matchup-no-data">-</span>
+                              )}
+                            </td>
+                            <td className="matchup-td-stats">
+                              {matchup.goFirst.second.total > 0 ? (
+                                <>
+                                  <span className={`matchup-rate ${matchup.goFirst.second.winRate >= 50 ? 'good' : 'bad'}`}>
+                                    {matchup.goFirst.second.winRate.toFixed(0)}%
+                                  </span>
+                                  <span className="matchup-record">
+                                    {matchup.goFirst.second.wins}-{matchup.goFirst.second.losses}
+                                    {matchup.goFirst.second.draws > 0 && `-${matchup.goFirst.second.draws}`}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="matchup-no-data">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 ) : (
                   <p className="no-matchup-data">相手リーダーのデータがありません</p>

@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { getDbInstance, initializeFirebase } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
-import type { Match, LeaderCard, MatchResult, DeckVersionRef } from '../types'
+import type { Match, LeaderCard, MatchResult, DeckVersionRef, GoFirst } from '../types'
 
 // Helper to get Firestore functions lazily
 async function getFirestoreFunctions() {
@@ -71,6 +71,7 @@ export function useMatches() {
             memo: data.memo || null,
             order: data.order || 0,
             createdAt: data.createdAt?.toDate() || new Date(),
+            goFirst: (data.goFirst as GoFirst) || null,
             myDeckId: data.myDeckId || null,
             myDeckVersion: data.myDeckVersion || null,
             myLeader: data.myLeader || null,
@@ -91,6 +92,7 @@ export function useMatches() {
         result: MatchResult
         opponentLeader?: LeaderCard | null
         memo?: string
+        goFirst?: GoFirst
         myDeckId?: string | null
         myDeckVersion?: DeckVersionRef | null
         myLeader?: LeaderCard | null
@@ -121,6 +123,7 @@ export function useMatches() {
         memo: data.memo || null,
         order: highestOrder + 1,
         createdAt: serverTimestamp(),
+        goFirst: data.goFirst || null,
         myDeckId: data.myDeckId || null,
         myDeckVersion: data.myDeckVersion || null,
         myLeader: data.myLeader || null,
@@ -139,6 +142,7 @@ export function useMatches() {
         result: MatchResult
         opponentLeader: LeaderCard | null
         memo: string | null
+        goFirst: GoFirst
         myDeckId: string | null
         myDeckVersion: DeckVersionRef | null
         myLeader: LeaderCard | null
@@ -163,6 +167,7 @@ export function useMatches() {
       if (data.result !== undefined) updateData.result = data.result
       if (data.opponentLeader !== undefined) updateData.opponentLeader = data.opponentLeader
       if (data.memo !== undefined) updateData.memo = data.memo
+      if (data.goFirst !== undefined) updateData.goFirst = data.goFirst
       if (data.myDeckId !== undefined) updateData.myDeckId = data.myDeckId
       if (data.myDeckVersion !== undefined) updateData.myDeckVersion = data.myDeckVersion
       if (data.myLeader !== undefined) updateData.myLeader = data.myLeader
@@ -224,6 +229,7 @@ export function useMatches() {
           memo: data.memo || null,
           order: data.order || 0,
           createdAt: data.createdAt?.toDate() || new Date(),
+          goFirst: (data.goFirst as GoFirst) || null,
           myDeckId: data.myDeckId || null,
           myDeckVersion: data.myDeckVersion || null,
           myLeader: data.myLeader || null,

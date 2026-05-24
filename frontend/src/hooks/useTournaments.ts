@@ -9,6 +9,7 @@ import type {
   TournamentType,
   MatchResult,
   DeckVersionRef,
+  GoFirst,
 } from '../types'
 
 // Helper to get Firestore functions lazily
@@ -80,6 +81,7 @@ export function useTournaments() {
               memo: matchData.memo || null,
               order: matchData.order || 0,
               createdAt: matchData.createdAt?.toDate() || new Date(),
+              goFirst: (matchData.goFirst as GoFirst) || null,
               myDeckId: matchData.myDeckId || null,
               myDeckVersion: matchData.myDeckVersion || null,
               myLeader: matchData.myLeader || null,

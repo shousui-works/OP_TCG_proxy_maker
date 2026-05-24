@@ -1057,15 +1057,20 @@
 @media (min-width: 1024px) {
   .app {
     display: grid;
-    grid-template-rows: auto 1fr;
+    grid-template-rows: auto auto 1fr;
     grid-template-columns: var(--sidebar-width) 1fr;
     grid-template-areas:
       "header header"
+      "nav nav"
       "sidebar main";
   }
 
   .header {
     grid-area: header;
+  }
+
+  .app .page-nav-container {
+    grid-area: nav;
   }
 
   .main-content {
@@ -1507,4 +1512,18 @@
 .icon-button[data-tooltip]:hover::before {
   opacity: 1;
   visibility: visible;
+}
+
+/* PageNav container - always visible */
+.app .page-nav-container {
+  display: block;
+  width: 100%;
+  padding: var(--spacing-sm);
+  background: var(--color-bg-primary);
+}
+
+@media (min-width: 768px) {
+  .app .page-nav-container {
+    padding: 1rem;
+  }
 }

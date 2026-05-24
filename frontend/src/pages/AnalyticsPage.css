@@ -158,6 +158,67 @@
   color: #ef4444;
 }
 
+/* Go First Stats */
+.go-first-stats {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, #2a2a4a);
+}
+
+.go-first-stats h3 {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #aaa);
+  margin: 0 0 0.75rem;
+}
+
+.go-first-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.go-first-card {
+  background: var(--bg-tertiary, #1f2937);
+  border-radius: 6px;
+  padding: 0.75rem;
+  text-align: center;
+  border-left: 3px solid;
+}
+
+.go-first-card.first {
+  border-left-color: #3b82f6;
+}
+
+.go-first-card.second {
+  border-left-color: #f97316;
+}
+
+.go-first-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #aaa);
+  margin-bottom: 0.25rem;
+}
+
+.go-first-card.first .go-first-label {
+  color: #3b82f6;
+}
+
+.go-first-card.second .go-first-label {
+  color: #f97316;
+}
+
+.go-first-winrate {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.go-first-record {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #aaa);
+  margin-top: 0.25rem;
+}
+
 /* Chart Section */
 .chart-section {
   min-height: 280px;
@@ -324,7 +385,106 @@
   margin-top: 0.25rem;
 }
 
-/* Matchup Grid */
+/* Matchup Table */
+.matchup-table-container {
+  overflow-x: auto;
+}
+
+.matchup-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.matchup-table th {
+  text-align: left;
+  padding: 0.75rem 0.5rem;
+  color: var(--text-secondary, #aaa);
+  font-weight: 500;
+  font-size: 0.75rem;
+  border-bottom: 1px solid var(--border-color, #2a2a4a);
+}
+
+.matchup-th-opponent {
+  min-width: 140px;
+}
+
+.matchup-th-total,
+.matchup-th-first,
+.matchup-th-second {
+  text-align: center !important;
+  min-width: 70px;
+}
+
+.matchup-th-first {
+  color: #3b82f6 !important;
+}
+
+.matchup-th-second {
+  color: #f97316 !important;
+}
+
+.matchup-row {
+  border-bottom: 1px solid var(--border-color, #2a2a4a);
+}
+
+.matchup-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.matchup-td-opponent {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.5rem;
+}
+
+.matchup-table-img {
+  width: 28px;
+  height: auto;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.matchup-table-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.matchup-td-stats {
+  text-align: center;
+  padding: 0.625rem 0.5rem;
+  vertical-align: middle;
+}
+
+.matchup-rate {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.matchup-rate.good {
+  color: #4caf50;
+}
+
+.matchup-rate.bad {
+  color: #ef4444;
+}
+
+.matchup-record {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--text-secondary, #aaa);
+  margin-top: 0.125rem;
+}
+
+.matchup-no-data {
+  color: var(--text-secondary, #aaa);
+}
+
+/* Matchup Grid (fallback/legacy) */
 .matchup-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

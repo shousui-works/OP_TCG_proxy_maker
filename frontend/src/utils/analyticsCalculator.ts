@@ -266,35 +266,75 @@ export function formatDisplayDate(dateStr: string): string {
 }
 
 /**
- * 特定リーダー使用時の相手リーダー別相性を計算
+ * 特定リーダー使用時の相手リーダー別相性を計算（先手後手別統計付き）
  */
 export interface MatchupStats extends WinRateStat {
   opponentLeader: LeaderCard
+  goFirst: {
+    first: WinRateStat
+    second: WinRateStat
+  }
+}
+
+interface MatchupEntry {
+  opponent: LeaderCard
+  stat: WinRateStat
+  first: WinRateStat
+  second: WinRateStat
 }
 
 export function calculateMatchupsForLeader(
   tournaments: TournamentWithMatches[],
   myLeaderId: string
 ): MatchupStats[] {
-  const matchupMap = new Map<string, { opponent: LeaderCard; stat: WinRateStat }>()
+  const matchupMap = new Map<string, MatchupEntry>()
+
+  const createEmptyStat = (): WinRateStat => ({
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    total: 0,
+    winRate: 0,
+  })
+
+  const processMatch = (match: Match, opponentLeader: LeaderCard) => {
+    const key = opponentLeader.id
+    if (!matchupMap.has(key)) {
+      matchupMap.set(key, {
+        opponent: opponentLeader,
+        stat: createEmptyStat(),
+        first: createEmptyStat(),
+        second: createEmptyStat(),
+      })
+    }
+    const entry = matchupMap.get(key)!
+
+    // 全体統計
+    entry.stat.total++
+    if (match.result === 'win') entry.stat.wins++
+    else if (match.result === 'loss') entry.stat.losses++
+    else entry.stat.draws++
+
+    // 先手後手別統計
+    if (match.goFirst === 'first') {
+      entry.first.total++
+      if (match.result === 'win') entry.first.wins++
+      else if (match.result === 'loss') entry.first.losses++
+      else entry.first.draws++
+    } else if (match.goFirst === 'second') {
+      entry.second.total++
+      if (match.result === 'win') entry.second.wins++
+      else if (match.result === 'loss') entry.second.losses++
+      else entry.second.draws++
+    }
+  }
 
   for (const tournament of tournaments) {
     // 大会使用リーダーが一致する場合（フリープレイ以外）
     if (tournament.type !== 'freeplay' && tournament.myLeader?.id === myLeaderId) {
       for (const match of tournament.matches) {
         if (match.opponentLeader) {
-          const key = match.opponentLeader.id
-          if (!matchupMap.has(key)) {
-            matchupMap.set(key, {
-              opponent: match.opponentLeader,
-              stat: { wins: 0, losses: 0, draws: 0, total: 0, winRate: 0 },
-            })
-          }
-          const entry = matchupMap.get(key)!
-          entry.stat.total++
-          if (match.result === 'win') entry.stat.wins++
-          else if (match.result === 'loss') entry.stat.losses++
-          else entry.stat.draws++
+          processMatch(match, match.opponentLeader)
         }
       }
     }
@@ -303,18 +343,7 @@ export function calculateMatchupsForLeader(
     if (tournament.type === 'freeplay') {
       for (const match of tournament.matches) {
         if (match.myLeader?.id === myLeaderId && match.opponentLeader) {
-          const key = match.opponentLeader.id
-          if (!matchupMap.has(key)) {
-            matchupMap.set(key, {
-              opponent: match.opponentLeader,
-              stat: { wins: 0, losses: 0, draws: 0, total: 0, winRate: 0 },
-            })
-          }
-          const entry = matchupMap.get(key)!
-          entry.stat.total++
-          if (match.result === 'win') entry.stat.wins++
-          else if (match.result === 'loss') entry.stat.losses++
-          else entry.stat.draws++
+          processMatch(match, match.opponentLeader)
         }
       }
     }
@@ -322,11 +351,15 @@ export function calculateMatchupsForLeader(
 
   // 結果を作成（試合数順でソート）
   const result: MatchupStats[] = []
-  for (const { opponent, stat } of matchupMap.values()) {
+  for (const { opponent, stat, first, second } of matchupMap.values()) {
     result.push({
       opponentLeader: opponent,
       ...stat,
       winRate: calculateWinRate(stat.wins, stat.total),
+      goFirst: {
+        first: { ...first, winRate: calculateWinRate(first.wins, first.total) },
+        second: { ...second, winRate: calculateWinRate(second.wins, second.total) },
+      },
     })
   }
 
@@ -345,6 +378,43 @@ export function calculateDailyStatsChronological(
 }
 
 export type ChartPeriod = 'daily' | 'weekly' | 'monthly'
+
+/**
+ * 先手後手別の統計
+ */
+export interface GoFirstStats {
+  first: WinRateStat
+  second: WinRateStat
+}
+
+/**
+ * 先手後手別の勝率を計算
+ */
+export function calculateGoFirstStats(tournaments: TournamentWithMatches[]): GoFirstStats {
+  const first: WinRateStat = { wins: 0, losses: 0, draws: 0, total: 0, winRate: 0 }
+  const second: WinRateStat = { wins: 0, losses: 0, draws: 0, total: 0, winRate: 0 }
+
+  for (const tournament of tournaments) {
+    for (const match of tournament.matches) {
+      if (match.goFirst === 'first') {
+        first.total++
+        if (match.result === 'win') first.wins++
+        else if (match.result === 'loss') first.losses++
+        else first.draws++
+      } else if (match.goFirst === 'second') {
+        second.total++
+        if (match.result === 'win') second.wins++
+        else if (match.result === 'loss') second.losses++
+        else second.draws++
+      }
+    }
+  }
+
+  first.winRate = calculateWinRate(first.wins, first.total)
+  second.winRate = calculateWinRate(second.wins, second.total)
+
+  return { first, second }
+}
 
 export interface PeriodStats extends WinRateStat {
   label: string // 表示用ラベル

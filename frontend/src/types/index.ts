@@ -107,6 +107,13 @@ export interface TournamentWithMatches extends Tournament {
   winRate: number
 }
 
+export type GoFirst = 'first' | 'second' | null
+
+export const GO_FIRST_LABELS: Record<'first' | 'second', string> = {
+  first: '先手',
+  second: '後手',
+}
+
 export interface Match {
   id: string
   tournamentId: string
@@ -115,6 +122,8 @@ export interface Match {
   memo: string | null
   order: number
   createdAt: Date
+  // 先手後手
+  goFirst: GoFirst
   // フリープレイ用：試合ごとのデッキ情報
   myDeckId: string | null
   myDeckVersion: DeckVersionRef | null

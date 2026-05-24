@@ -207,7 +207,7 @@ export function TournamentsPage() {
     return (
       <div className="tournaments-page">
         {pageHead}
-        <PageNav />
+        <div className="page-nav-container"><PageNav /></div>
         <header className="tournaments-header">
           <h1>戦績管理</h1>
         </header>
@@ -223,7 +223,7 @@ export function TournamentsPage() {
     return (
       <div className="tournaments-page">
         {pageHead}
-        <PageNav />
+        <div className="page-nav-container"><PageNav /></div>
         <header className="tournaments-header">
           <h1>戦績管理</h1>
         </header>
@@ -238,7 +238,7 @@ export function TournamentsPage() {
   return (
     <div className="tournaments-page">
       {pageHead}
-      <PageNav />
+      <div className="page-nav-container"><PageNav /></div>
       <header className="tournaments-header">
         <h1>戦績管理</h1>
         <div className="header-actions">

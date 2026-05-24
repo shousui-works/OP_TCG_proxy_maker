@@ -791,6 +791,9 @@ function App() {
             <LoginButton />
           </header>
         )}
+        <div className="page-nav-container">
+          <PageNav />
+        </div>
         <main className="main-content">
           <div className="card-list-panel">
             <CardGridSkeleton cardCount={isMobile ? 9 : 20} />
@@ -831,7 +834,6 @@ function App() {
             <Link to="/" className="home-link">
               <h1>OP-TCG base</h1>
             </Link>
-            <PageNav />
           </div>
           <div className="deck-controls">
             <div className="current-deck">
@@ -851,6 +853,11 @@ function App() {
           <LoginButton />
         </header>
       )}
+
+      {/* PageNav - 常にヘッダーの直後に表示 */}
+      <div className="page-nav-container">
+        <PageNav />
+      </div>
 
       {/* ハンバーガーメニュー (モバイル) */}
       <HamburgerMenu

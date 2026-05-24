@@ -57,6 +57,40 @@
   color: #facc15;
 }
 
+/* 先手/後手ボタン */
+.go-first-buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.go-first-button {
+  flex: 1;
+  padding: 0.625rem;
+  border: 2px solid var(--border-color, #2a2a4a);
+  border-radius: 4px;
+  background: var(--bg-tertiary, #1f2937);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.go-first-button:hover {
+  border-color: var(--text-secondary, #aaa);
+}
+
+.go-first-button.first.selected {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.go-first-button.second.selected {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: #f97316;
+  color: #f97316;
+}
+
 .match-modal .leader-selection {
   margin-top: 0;
 }
