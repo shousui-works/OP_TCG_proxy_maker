@@ -8,6 +8,7 @@ import App from './App.tsx'
 import Admin from './Admin.tsx'
 import { TournamentsPage } from './pages/TournamentsPage.tsx'
 import { AnalyticsPage } from './pages/AnalyticsPage.tsx'
+import { ProxyPage } from './pages/ProxyPage.tsx'
 import { AuthProvider } from './contexts/AuthContext.tsx'
 
 createRoot(document.getElementById('root')!).render(
@@ -18,6 +19,7 @@ createRoot(document.getElementById('root')!).render(
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/deck" element={<App />} />
+            <Route path="/proxy" element={<ProxyPage />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/tournaments" element={<TournamentsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />

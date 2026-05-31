@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom'
 import './App.css'
 import SEOHead, { createHowToStructuredData, createBreadcrumbStructuredData } from './components/SEOHead'
 import PageNav from './components/PageNav'
-import { exportDeckToPDF } from './utils/pdfExport'
 import { exportDeckToImage } from './utils/deckImageExport'
 import { normalizeForSearch } from './utils/textNormalize'
 import { sortCards, sortDeckCards } from './utils/cardSort'
 import { getCardImageUrlWithSeries, getCardImageUrl } from './utils/cardImage'
 import { useAuth } from './contexts/AuthContext'
 import { useFirestoreDeck } from './hooks/useFirestoreDeck'
+import { useNavigate } from 'react-router-dom'
 import { useResponsive } from './hooks/useResponsive'
 import LoginButton from './components/LoginButton'
 import MobileHeader from './components/MobileHeader'
@@ -41,6 +41,7 @@ interface Card {
   color?: string
   attribute?: string
   feature?: string
+  text?: string
 }
 
 interface DeckCard extends Card {
@@ -56,10 +57,19 @@ interface SavedDeck {
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 const MAX_DECK_SIZE = 50
 const MAX_COPIES = 4
+const DECK_STORAGE_KEY = 'deck_builder_state'
+
+interface StoredDeckState {
+  deck: Array<{ id: string; name: string; image: string; count: number; color?: string }>
+  leader: { id: string; name: string; image: string; color?: string } | null
+  currentDeckName: string | null
+  hasUnsavedChanges: boolean
+}
 
 function App() {
   const { user } = useAuth()
   const firestore = useFirestoreDeck()
+  const navigate = useNavigate()
   const { isMobile } = useResponsive()
 
   const [cards, setCards] = useState<Card[]>([])
@@ -78,14 +88,10 @@ function App() {
   const [hoverCard, setHoverCard] = useState<{ card: Card; x: number; y: number } | null>(null)
   const [enableHoverZoom, setEnableHoverZoom] = useState(false)
 
-  // PDF生成状態
+  // プロキシ作成モーダル状態
   const [showPdfModal, setShowPdfModal] = useState(false)
   const [pdfSelectedCards, setPdfSelectedCards] = useState<Map<string, number>>(new Map())
   const [pdfIncludeLeader, setPdfIncludeLeader] = useState(true)
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
-  const [pdfProgress, setPdfProgress] = useState(0)
-  const [pdfLoadedCount, setPdfLoadedCount] = useState(0)
-  const [pdfTotalCount, setPdfTotalCount] = useState(0)
 
   // 画像出力状態
   const [isGeneratingImage, setIsGeneratingImage] = useState(false)
@@ -121,7 +127,10 @@ function App() {
   const [selectedColors, setSelectedColors] = useState<string[]>([])
   const [selectedCardTypes, setSelectedCardTypes] = useState<string[]>([])
   const [selectedRarities, setSelectedRarities] = useState<string[]>([])
+  const [selectedCosts, setSelectedCosts] = useState<number[]>([])
+  const [selectedAttributes, setSelectedAttributes] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [featureQuery, setFeatureQuery] = useState('')
 
   // モバイルUI状態
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -136,6 +145,8 @@ function App() {
   const colors = ['赤', '緑', '青', '紫', '黒', '黄']
   const cardTypes = ['LEADER', 'CHARACTER', 'EVENT', 'STAGE']
   const rarities = ['L', 'C', 'UC', 'R', 'SR', 'SEC', 'SP']
+  const costs = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+  const attributes = ['打', '斬', '射', '知', '特']
 
   const toggleFilter = (
     current: string[],
@@ -146,6 +157,22 @@ function App() {
       setter(current.filter(v => v !== value))
     } else {
       setter([...current, value])
+    }
+  }
+
+  const toggleCostFilter = (cost: number) => {
+    if (selectedCosts.includes(cost)) {
+      setSelectedCosts(selectedCosts.filter(c => c !== cost))
+    } else {
+      setSelectedCosts([...selectedCosts, cost])
+    }
+  }
+
+  const toggleAttributeFilter = (attr: string) => {
+    if (selectedAttributes.includes(attr)) {
+      setSelectedAttributes(selectedAttributes.filter(a => a !== attr))
+    } else {
+      setSelectedAttributes([...selectedAttributes, attr])
     }
   }
 
@@ -236,6 +263,66 @@ function App() {
     initCards()
   }, [])
 
+  // sessionStorageからデッキ状態を復元
+  useEffect(() => {
+    if (loading) return // カードデータ読み込み完了を待つ
+
+    try {
+      const stored = sessionStorage.getItem(DECK_STORAGE_KEY)
+      if (stored) {
+        const state: StoredDeckState = JSON.parse(stored)
+        if (state.deck && state.deck.length > 0) {
+          const restoredDeck: DeckCard[] = state.deck.map(c => {
+            const fullCard = cards.find(card => card.id === c.id)
+            if (fullCard) {
+              return { ...fullCard, count: c.count }
+            }
+            return { id: c.id, name: c.name, image: c.image, count: c.count, color: c.color }
+          })
+          setDeck(restoredDeck)
+        }
+        if (state.leader) {
+          const fullLeader = cards.find(card => card.id === state.leader!.id)
+          if (fullLeader) {
+            setLeader(fullLeader)
+          } else {
+            setLeader(state.leader)
+          }
+        }
+        if (state.currentDeckName) {
+          setCurrentDeckName(state.currentDeckName)
+        }
+        setHasUnsavedChanges(Boolean(state.hasUnsavedChanges))
+      }
+    } catch (err) {
+      console.error('Failed to restore deck from storage:', err)
+    }
+  }, [loading, cards])
+
+  // デッキ状態が変わったらsessionStorageに保存
+  useEffect(() => {
+    if (loading) return // 初期化完了前は保存しない
+
+    const state: StoredDeckState = {
+      deck: deck.map(c => ({
+        id: c.id,
+        name: c.name,
+        image: c.image,
+        count: c.count,
+        color: c.color
+      })),
+      leader: leader ? {
+        id: leader.id,
+        name: leader.name,
+        image: leader.image,
+        color: leader.color
+      } : null,
+      currentDeckName,
+      hasUnsavedChanges
+    }
+    sessionStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(state))
+  }, [deck, leader, currentDeckName, hasUnsavedChanges, loading])
+
   // 保存済みデッキを初期化
   useEffect(() => {
     void fetchSavedDecks()
@@ -245,6 +332,7 @@ function App() {
   const filteredCards = useMemo(() => {
     // 検索クエリの正規化はループ外で1回だけ実行
     const normalizedQuery = searchQuery ? normalizeForSearch(searchQuery) : ''
+    const normalizedFeatureQuery = featureQuery ? normalizeForSearch(featureQuery) : ''
 
     return cards
       .filter(card => {
@@ -261,16 +349,32 @@ function App() {
         if (selectedRarities.length > 0 && !selectedRarities.includes(card.rarity || '')) {
           return false
         }
+        if (selectedCosts.length > 0) {
+          const cardCost = parseInt(card.cost || '-1', 10)
+          if (!selectedCosts.includes(cardCost)) return false
+        }
+        if (selectedAttributes.length > 0) {
+          const cardAttr = card.attribute || ''
+          // 複合属性（斬/打など）の場合、選択した属性のいずれかを含むかチェック
+          const hasMatchingAttr = selectedAttributes.some(attr => cardAttr.includes(attr))
+          if (!hasMatchingAttr) return false
+        }
         if (normalizedQuery) {
           const matchId = normalizeForSearch(card.id).includes(normalizedQuery)
           const matchName = normalizeForSearch(card.name || '').includes(normalizedQuery)
 
           if (!matchId && !matchName) return false
         }
+        if (normalizedFeatureQuery) {
+          const matchFeature = normalizeForSearch(card.feature || '').includes(normalizedFeatureQuery)
+          const matchText = normalizeForSearch(card.text || '').includes(normalizedFeatureQuery)
+
+          if (!matchFeature && !matchText) return false
+        }
         return true
       })
       .sort(sortCards)
-  }, [cards, selectedSeries, selectedColors, selectedCardTypes, selectedRarities, searchQuery])
+  }, [cards, selectedSeries, selectedColors, selectedCardTypes, selectedRarities, selectedCosts, selectedAttributes, searchQuery, featureQuery])
 
   // deckをMapに変換してO(1)検索
   const deckMap = useMemo(() => {
@@ -282,14 +386,17 @@ function App() {
     return [...deck].sort(sortDeckCards)
   }, [deck])
 
-  const hasActiveFilters = searchQuery || selectedSeries.length > 0 || selectedColors.length > 0 || selectedCardTypes.length > 0 || selectedRarities.length > 0
+  const hasActiveFilters = searchQuery || featureQuery || selectedSeries.length > 0 || selectedColors.length > 0 || selectedCardTypes.length > 0 || selectedRarities.length > 0 || selectedCosts.length > 0 || selectedAttributes.length > 0
 
   const clearFilters = () => {
     setSearchQuery('')
+    setFeatureQuery('')
     setSelectedSeries([])
     setSelectedColors([])
     setSelectedCardTypes([])
     setSelectedRarities([])
+    setSelectedCosts([])
+    setSelectedAttributes([])
   }
 
   // デッキを保存（上書き）- バージョン名入力モーダルを表示
@@ -535,12 +642,9 @@ function App() {
 
   const pdfTotalCards = Array.from(pdfSelectedCards.values()).reduce((sum, count) => sum + count, 0) + (pdfIncludeLeader && leader ? 1 : 0)
 
-  const handleExportPDF = async () => {
+  // プロキシ作成ページにカードを渡して移動（PDFダウンロードなし）
+  const handleSendToProxy = () => {
     setShowPdfModal(false)
-    setIsGeneratingPDF(true)
-    setPdfProgress(0)
-    setPdfLoadedCount(0)
-    setPdfTotalCount(0)
 
     const selectedDeck = deck
       .filter(card => pdfSelectedCards.has(card.id))
@@ -550,27 +654,24 @@ function App() {
       }))
       .filter(card => card.count > 0)
 
-    const result = await exportDeckToPDF({
-      deck: selectedDeck,
-      leader: pdfIncludeLeader ? leader : null,
-      apiBase: API_BASE,
-      deckName: currentDeckName,
-      onProgress: (progress, loaded, total) => {
-        setPdfProgress(progress)
-        setPdfLoadedCount(loaded)
-        setPdfTotalCount(total)
-      }
-    })
-
-    setIsGeneratingPDF(false)
-
-    if (!result.success) {
-      alert(`PDF生成に失敗しました: ${result.error}`)
-    } else if (result.failedImages && result.failedImages.length > 0) {
-      alert(
-        `PDFを生成しました（${result.failedImages.length}枚の画像が読み込めませんでした）`
-      )
+    const cardsForProxy: Array<{ id: string; name: string; image: string; count: number }> = []
+    if (pdfIncludeLeader && leader) {
+      cardsForProxy.push({
+        id: leader.id,
+        name: leader.name,
+        image: leader.image,
+        count: 1
+      })
     }
+    selectedDeck.forEach(card => {
+      cardsForProxy.push({
+        id: card.id,
+        name: card.name,
+        image: card.image,
+        count: card.count
+      })
+    })
+    navigate('/proxy', { state: { cards: cardsForProxy } })
   }
 
   // デッキ画像出力
@@ -891,6 +992,8 @@ function App() {
         isMobile={isMobile}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        featureQuery={featureQuery}
+        onFeatureChange={setFeatureQuery}
         colors={colors}
         selectedColors={selectedColors}
         onColorToggle={(c) => toggleFilter(selectedColors, setSelectedColors, c)}
@@ -900,6 +1003,12 @@ function App() {
         rarities={rarities}
         selectedRarities={selectedRarities}
         onRarityToggle={(r) => toggleFilter(selectedRarities, setSelectedRarities, r)}
+        costs={costs}
+        selectedCosts={selectedCosts}
+        onCostToggle={toggleCostFilter}
+        attributes={attributes}
+        selectedAttributes={selectedAttributes}
+        onAttributeToggle={toggleAttributeFilter}
         series={series}
         selectedSeries={selectedSeries}
         onSeriesAdd={(id) => setSelectedSeries(prev => [...prev, id])}
@@ -1039,6 +1148,8 @@ function App() {
               isMobile={false}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
+              featureQuery={featureQuery}
+              onFeatureChange={setFeatureQuery}
               colors={colors}
               selectedColors={selectedColors}
               onColorToggle={(c) => toggleFilter(selectedColors, setSelectedColors, c)}
@@ -1048,6 +1159,12 @@ function App() {
               rarities={rarities}
               selectedRarities={selectedRarities}
               onRarityToggle={(r) => toggleFilter(selectedRarities, setSelectedRarities, r)}
+              costs={costs}
+              selectedCosts={selectedCosts}
+              onCostToggle={toggleCostFilter}
+              attributes={attributes}
+              selectedAttributes={selectedAttributes}
+              onAttributeToggle={toggleAttributeFilter}
               series={series}
               selectedSeries={selectedSeries}
               onSeriesAdd={(id) => setSelectedSeries(prev => [...prev, id])}
@@ -1111,15 +1228,13 @@ function App() {
                 onClick={openPdfModal}
                 disabled={deck.length === 0 && !leader}
                 className="icon-button"
-                data-tooltip="プロキシPDF生成"
-                aria-label="プロキシPDF生成"
-                title="プロキシPDF生成"
+                data-tooltip="プロキシ作成へ"
+                aria-label="プロキシ作成へ"
+                title="プロキシ作成へ"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/>
-                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <rect x="6" y="4" width="12" height="16" rx="1"/>
+                  <path d="M12 18l4-4m0 0l-4-4m4 4H3"/>
                 </svg>
               </button>
               <button
@@ -1324,11 +1439,11 @@ function App() {
             <div className="modal-actions">
               <button onClick={() => setShowPdfModal(false)}>キャンセル</button>
               <button
-                onClick={handleExportPDF}
+                onClick={handleSendToProxy}
                 className="primary"
                 disabled={pdfTotalCards === 0}
               >
-                作成 ({pdfTotalCards}枚)
+                プロキシ作成へ ({pdfTotalCards}枚)
               </button>
             </div>
           </div>
@@ -1356,24 +1471,6 @@ function App() {
               boxShadow: '0 10px 40px rgba(0, 0, 0, 0.6)',
             }}
           />
-        </div>
-      )}
-
-      {/* プロキシ生成中モーダル */}
-      {isGeneratingPDF && (
-        <div className="modal-overlay">
-          <div className="modal pdf-modal">
-            <h3>プロキシ作成中...</h3>
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${pdfProgress}%` }}
-              />
-            </div>
-            <p className="progress-text">
-              {pdfProgress}% - 画像読込中 ({pdfLoadedCount}/{pdfTotalCount})
-            </p>
-          </div>
         </div>
       )}
 
