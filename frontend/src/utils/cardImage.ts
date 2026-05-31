@@ -3,6 +3,7 @@
  */
 
 const isDev = import.meta.env.DEV
+const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 // 開発環境: Viteプロキシ経由で公式サイトから取得
 // 本番環境: GCSから直接取得（リダイレクトなし）
@@ -43,7 +44,6 @@ export function getCardImageUrlWithSeries(seriesId: string, cardId: string): str
 
   // パラレル版はseries_idがベースカードと異なるのでAPIフォールバック
   if (isParallelCard(cardId)) {
-    const API_BASE = import.meta.env.VITE_API_BASE || ''
     return `${API_BASE}/api/cards/${baseId}/image`
   }
 
@@ -64,7 +64,6 @@ export function getCardImageUrl(cardId: string): string {
   }
 
   // 本番でseries_idがない場合はフォールバック（遅い）
-  const API_BASE = import.meta.env.VITE_API_BASE || ''
   return `${API_BASE}/api/cards/${baseId}/image`
 }
 
@@ -80,12 +79,15 @@ export function resolveCardImage(_image: string | undefined, cardId: string, ser
 
 /**
  * カードIDからサムネイル画像URLを生成
- * 現状はフルサイズ画像と同じURLを返す
+ * バックエンドのサムネイルAPI（WebP形式、キャッシュ済み）を使用
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function getCardThumbnailUrl(cardId: string, _size: ThumbnailSize = 'sm', seriesId?: string): string {
+export function getCardThumbnailUrl(cardId: string, size: ThumbnailSize = 'sm', seriesId?: string): string {
+  if (!cardId) return ''
+  const baseId = getBaseCardId(cardId)
+
+  // サムネイルAPIを使用（WebP形式で軽量）
   if (seriesId) {
-    return getCardImageUrlWithSeries(seriesId, cardId)
+    return `${API_BASE}/api/cards/${seriesId}/${baseId}/thumb?size=${size}`
   }
-  return getCardImageUrl(cardId)
+  return `${API_BASE}/api/cards/${baseId}/thumb?size=${size}`
 }
