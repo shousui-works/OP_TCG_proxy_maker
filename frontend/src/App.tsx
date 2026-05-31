@@ -63,6 +63,7 @@ interface StoredDeckState {
   deck: Array<{ id: string; name: string; image: string; count: number; color?: string }>
   leader: { id: string; name: string; image: string; color?: string } | null
   currentDeckName: string | null
+  hasUnsavedChanges: boolean
 }
 
 function App() {
@@ -291,6 +292,7 @@ function App() {
         if (state.currentDeckName) {
           setCurrentDeckName(state.currentDeckName)
         }
+        setHasUnsavedChanges(Boolean(state.hasUnsavedChanges))
       }
     } catch (err) {
       console.error('Failed to restore deck from storage:', err)
@@ -315,10 +317,11 @@ function App() {
         image: leader.image,
         color: leader.color
       } : null,
-      currentDeckName
+      currentDeckName,
+      hasUnsavedChanges
     }
     sessionStorage.setItem(DECK_STORAGE_KEY, JSON.stringify(state))
-  }, [deck, leader, currentDeckName, loading])
+  }, [deck, leader, currentDeckName, hasUnsavedChanges, loading])
 
   // 保存済みデッキを初期化
   useEffect(() => {

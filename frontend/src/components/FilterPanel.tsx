@@ -333,6 +333,7 @@ export default function FilterPanel({
           type="text"
           className="filter-search"
           placeholder="名前・ID..."
+          aria-label="名前・ID検索"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
         />
@@ -342,6 +343,7 @@ export default function FilterPanel({
           type="text"
           className="filter-search feature-search"
           placeholder="特徴・テキスト..."
+          aria-label="特徴・テキスト検索"
           value={featureQuery}
           onChange={(e) => onFeatureChange(e.target.value)}
         />

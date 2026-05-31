@@ -137,10 +137,12 @@ export function ProxyPage() {
   }, [])
 
   // 履歴一覧を取得
+  const { isAuthenticated, fetchLists } = proxyList
+
   const fetchHistory = useCallback(async () => {
-    if (!proxyList.isAuthenticated) return
+    if (!isAuthenticated) return
     try {
-      const lists = await proxyList.fetchLists()
+      const lists = await fetchLists()
       setHistory(lists.map(l => ({
         name: l.name,
         cardCount: l.cards.reduce((sum, c) => sum + c.count, 0),
@@ -149,7 +151,7 @@ export function ProxyPage() {
     } catch (err) {
       console.error('Failed to fetch history:', err)
     }
-  }, [proxyList])
+  }, [isAuthenticated, fetchLists])
 
   useEffect(() => {
     void fetchHistory()
