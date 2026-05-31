@@ -3,6 +3,7 @@ import './PageNav.css'
 
 const navItems = [
   { path: '/', label: 'ホーム' },
+  { path: '/proxy', label: 'プロキシ' },
   { path: '/deck', label: 'デッキ' },
   { path: '/tournaments', label: '戦績' },
   { path: '/analytics', label: '分析' },

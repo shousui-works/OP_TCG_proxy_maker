@@ -228,10 +228,15 @@
 
 .filter-panel-desktop .filter-search {
   width: auto;
-  min-width: 150px;
-  max-width: 200px;
+  min-width: 120px;
+  max-width: 160px;
   height: 36px;
   font-size: 0.875rem;
+}
+
+.filter-panel-desktop .filter-search.feature-search {
+  min-width: 140px;
+  max-width: 180px;
 }
 
 .filter-panel-desktop .filter-chip {
@@ -271,4 +276,80 @@
 .selected-series-row .filter-chip {
   background: var(--color-accent);
   color: white;
+}
+
+/* Inline filter group - shared styles for cost, rarity, cardtype, attribute */
+.inline-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.inline-filter-icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.inline-filter-chips {
+  display: flex;
+  gap: 2px;
+}
+
+.inline-filter-chip {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.inline-filter-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+}
+
+.inline-filter-chip.active {
+  background: var(--color-accent);
+  color: white;
+}
+
+/* Cost chips - fixed width for numbers */
+.inline-filter-chip.cost {
+  width: 24px;
+  padding: 0;
+}
+
+/* Cardtype chips - slightly wider for text */
+.inline-filter-chip.cardtype {
+  padding: 0 6px;
+}
+
+/* Attribute chips - slightly wider for text */
+.inline-filter-chip.attribute {
+  padding: 0 6px;
+}
+
+/* Cost chips for mobile - larger touch targets */
+.filter-chips.cost-chips {
+  gap: var(--spacing-xs);
+}
+
+.filter-chip.cost-chip {
+  min-width: 40px;
+  min-height: 40px;
+  padding: var(--spacing-xs);
+  justify-content: center;
+  font-weight: 600;
 }

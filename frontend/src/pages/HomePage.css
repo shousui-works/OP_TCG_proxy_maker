@@ -101,6 +101,15 @@
   color: #ff9800;
 }
 
+.menu-card.proxy-maker:hover {
+  border-color: #2196f3;
+  box-shadow: 0 12px 40px rgba(33, 150, 243, 0.2);
+}
+
+.menu-card.proxy-maker:hover .menu-icon {
+  color: #2196f3;
+}
+
 .menu-card.analytics:hover {
   border-color: #9c27b0;
   box-shadow: 0 12px 40px rgba(156, 39, 176, 0.2);
