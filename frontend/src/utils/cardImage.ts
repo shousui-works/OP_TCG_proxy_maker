@@ -79,15 +79,14 @@ export function resolveCardImage(_image: string | undefined, cardId: string, ser
 
 /**
  * カードIDからサムネイル画像URLを生成
- * バックエンドのサムネイルAPI（WebP形式、キャッシュ済み）を使用
+ * 本番環境ではGCSから直接取得（サムネイルAPIはCloud Runで動作しないため）
+ * TODO: GCSにサムネイル画像を事前生成してアップロードする
  */
-export function getCardThumbnailUrl(cardId: string, size: ThumbnailSize = 'sm', seriesId?: string): string {
-  if (!cardId) return ''
-  const baseId = getBaseCardId(cardId)
-
-  // サムネイルAPIを使用（WebP形式で軽量）
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function getCardThumbnailUrl(cardId: string, _size: ThumbnailSize = 'sm', seriesId?: string): string {
+  // サムネイルAPIはCloud Run環境で動作しないため、フルサイズ画像を使用
   if (seriesId) {
-    return `${API_BASE}/api/cards/${seriesId}/${baseId}/thumb?size=${size}`
+    return getCardImageUrlWithSeries(seriesId, cardId)
   }
-  return `${API_BASE}/api/cards/${baseId}/thumb?size=${size}`
+  return getCardImageUrl(cardId)
 }
